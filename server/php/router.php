@@ -259,24 +259,65 @@ function patchStep(string $id, int $port): void
     }
 
     [$root, $path] = findProject($id);
-    $data = readProgressFile($path);
-    $step = $data->milestones[$body['milestone']]->tasks[$body['task']]->steps[$body['step']] ?? null;
-    if (!is_object($step)) {
-        throw new HttpError(404, 'There is no step at that position.');
+    send(200, changeLocked($root, $path, function (object $data) use ($body, $status): void {
+        $step = $data->milestones[$body['milestone']]->tasks[$body['task']]->steps[$body['step']] ?? null;
+        if (!is_object($step)) {
+            throw new HttpError(404, 'There is no step at that position.');
+        }
+        if (($step->title ?? null) !== $body['title']) {
+            throw new HttpError(409, 'The list changed since you loaded it. Reload and try again.');
+        }
+        $step->status = $status;
+        if ($status === 'blocked') {
+            $step->reason = trim($body['reason']);
+        } else {
+            unset($step->reason);
+        }
+    }));
+}
+
+// Read, change and write the progress file while holding its lock, using the same protocol
+// as the Node.js and Python servers: an exclusive "<file>.lock" with a random token, a short
+// wait (SOLO_KEEL_LOCK_TIMEOUT_MS, default 5 s) and a 30 s stale limit.
+function changeLocked(string $root, string $path, callable $change): string
+{
+    $lock = $path . '.lock';
+    $token = getmypid() . ' ' . bin2hex(random_bytes(8));
+    $deadline = microtime(true) + ((int) (getenv('SOLO_KEEL_LOCK_TIMEOUT_MS') ?: 5000)) / 1000;
+    while (true) {
+        $fh = @fopen($lock, 'x');
+        if ($fh !== false) {
+            fwrite($fh, $token);
+            fclose($fh);
+            break;
+        }
+        clearstatcache(true, $lock);
+        $mtime = @filemtime($lock);
+        if ($mtime === false) {
+            continue; // released meanwhile
+        }
+        if (time() - $mtime > 30) {
+            @unlink($lock);
+            continue;
+        }
+        if (microtime(true) >= $deadline) {
+            throw new HttpError(503, 'Another change to the progress file is in progress; try again in a moment.');
+        }
+        usleep(25000);
     }
-    if (($step->title ?? null) !== $body['title']) {
-        throw new HttpError(409, 'The list changed since you loaded it. Reload and try again.');
+    try {
+        $data = readProgressFile($path);
+        $change($data);
+        $data->updated = gmdate('Y-m-d');
+        $text = formatProgress($data);
+        writeAtomic($root, $path, $text);
+        return $text;
+    } finally {
+        // Remove only our own lock: after a stale break it may belong to someone else.
+        if (@file_get_contents($lock) === $token) {
+            @unlink($lock);
+        }
     }
-    $step->status = $status;
-    if ($status === 'blocked') {
-        $step->reason = trim($body['reason']);
-    } else {
-        unset($step->reason);
-    }
-    $data->updated = gmdate('Y-m-d');
-    $text = formatProgress($data);
-    writeAtomic($root, $path, $text);
-    send(200, $text);
 }
 
 function patchQuestion(string $id, int $port): void
@@ -294,20 +335,17 @@ function patchQuestion(string $id, int $port): void
         throw new HttpError(400, 'An answer needs some text (up to ' . MAX_ANSWER . ' characters).');
     }
     [$root, $path] = findProject($id);
-    $data = readProgressFile($path);
-    $question = $data->milestones[$body['milestone']]->tasks[$body['task']]->questions[$body['question']] ?? null;
-    if (!is_object($question)) {
-        throw new HttpError(404, 'There is no question at that position.');
-    }
-    if (($question->q ?? null) !== $body['q']) {
-        throw new HttpError(409, 'The list changed since you loaded it. Reload and try again.');
-    }
-    $question->a = trim($body['answer']);
-    unset($question->by); // answered by the user
-    $data->updated = gmdate('Y-m-d');
-    $text = formatProgress($data);
-    writeAtomic($root, $path, $text);
-    send(200, $text);
+    send(200, changeLocked($root, $path, function (object $data) use ($body): void {
+        $question = $data->milestones[$body['milestone']]->tasks[$body['task']]->questions[$body['question']] ?? null;
+        if (!is_object($question)) {
+            throw new HttpError(404, 'There is no question at that position.');
+        }
+        if (($question->q ?? null) !== $body['q']) {
+            throw new HttpError(409, 'The list changed since you loaded it. Reload and try again.');
+        }
+        $question->a = trim($body['answer']);
+        unset($question->by); // answered by the user
+    }));
 }
 
 // Document paths the progress file links (project, milestones, tasks), without "#anchor".

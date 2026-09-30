@@ -98,7 +98,7 @@ for (const rt of RUNTIMES) {
       fx = makeFixture();
       port = await freePort();
       const [cmd, args] = rt.cmd(port);
-      proc = spawn(cmd, args, { env: { ...process.env, SOLO_KEEL_HOME: fx.home, SOLO_KEEL_PORT: String(port) }, stdio: ["ignore", "ignore", "pipe"] });
+      proc = spawn(cmd, args, { env: { ...process.env, SOLO_KEEL_HOME: fx.home, SOLO_KEEL_PORT: String(port), SOLO_KEEL_LOCK_TIMEOUT_MS: "700" }, stdio: ["ignore", "ignore", "pipe"] });
       let stderr = "";
       proc.stderr.on("data", (d) => (stderr += d));
       for (let i = 0; i < 100; i++) {
@@ -204,6 +204,29 @@ for (const rt of RUNTIMES) {
       assert.equal((await request(port, "PATCH", "/api/projects/demo/steps", { body, headers: { Origin: `http://localhost:${port}` } })).status, 200);
       assert.equal((await request(port, "PATCH", "/api/projects/demo/steps", { body, headers: { "Content-Type": "text/plain" } })).status, 415);
       assert.equal((await request(port, "PATCH", "/api/projects/demo/steps", { body: JSON.stringify({ ...body, pad: "x".repeat(70000) }) })).status, 413);
+    });
+
+    test("writes wait for the progress lock, break a stale one, and answer 503 while it stays busy", async () => {
+      const lock = fx.demoFile + ".lock";
+      const body = { milestone: 0, task: 0, step: 1, title: "CI", status: "doing" };
+      const patch = () => request(port, "PATCH", "/api/projects/demo/steps", { body });
+      // Held, then released while the server waits.
+      fs.writeFileSync(lock, "another writer");
+      setTimeout(() => fs.rmSync(lock, { force: true }), 250);
+      let r = await patch();
+      assert.equal(r.status, 200, r.text);
+      assert.equal(fs.existsSync(lock), false, "the server removes its own lock");
+      // Held for longer than the server waits.
+      fs.writeFileSync(lock, "another writer");
+      r = await patch();
+      assert.equal(r.status, 503, r.text);
+      assert.equal(fs.readFileSync(lock, "utf8"), "another writer", "someone else's lock is left alone");
+      // Stale (a crashed writer): broken.
+      const old = new Date(Date.now() - 60_000);
+      fs.utimesSync(lock, old, old);
+      r = await patch();
+      assert.equal(r.status, 200, r.text);
+      assert.equal(fs.existsSync(lock), false);
     });
 
     test("serves only the dashboard files", async () => {

@@ -8,6 +8,7 @@ import { fileURLToPath } from "node:url";
 import { applyStatus, linkedDocs, parse, STATUSES } from "../../lib/progress.mjs";
 import { get, list } from "../../lib/registry.mjs";
 import { assertInside, openProject, readProgress, writeProgress } from "../../lib/store.mjs";
+import { LockBusyError, withLockSync } from "../../lib/lock.mjs";
 
 const repo = fileURLToPath(new URL("../../", import.meta.url));
 const VERSION = JSON.parse(fs.readFileSync(path.join(repo, "package.json"), "utf8")).version;
@@ -90,31 +91,41 @@ async function patchStep(req, id) {
   if (![milestone, task, step].every(Number.isInteger) || typeof title !== "string") throw new HttpError(400, "Send milestone, task and step as numbers and the step's title.");
   if (!STATUSES.includes(status)) throw new HttpError(400, `Status must be one of: ${STATUSES.join(", ")}.`);
   if (status === "blocked" && !shortText(reason, MAX_REASON)) throw new HttpError(400, `A blocked step needs a reason (up to ${MAX_REASON} characters).`);
-  const project = projectOrThrow(id);
-  const data = readProgress(project);
-  const target = data.milestones[milestone]?.tasks?.[task]?.steps?.[step];
-  if (!target) throw new HttpError(404, "There is no step at that position.");
-  if (target.title !== title) throw new HttpError(409, "The list changed since you loaded it. Reload and try again.");
-  applyStatus(target, status, reason);
-  data.updated = new Date().toISOString().slice(0, 10);
-  writeProgress(project, data);
-  return data;
+  return changeLocked(projectOrThrow(id), (data) => {
+    const target = data.milestones[milestone]?.tasks?.[task]?.steps?.[step];
+    if (!target) throw new HttpError(404, "There is no step at that position.");
+    if (target.title !== title) throw new HttpError(409, "The list changed since you loaded it. Reload and try again.");
+    applyStatus(target, status, reason);
+  });
+}
+
+// Read, change and write the progress file while holding its lock (other writers wait).
+function changeLocked(project, change) {
+  try {
+    return withLockSync(project.progressPath, () => {
+      const data = readProgress(project);
+      change(data);
+      data.updated = new Date().toISOString().slice(0, 10);
+      writeProgress(project, data);
+      return data;
+    });
+  } catch (err) {
+    if (err instanceof LockBusyError) throw new HttpError(503, err.message);
+    throw err;
+  }
 }
 
 async function patchQuestion(req, id) {
   const { milestone, task, question, q, answer } = await jsonBody(req);
   if (![milestone, task, question].every(Number.isInteger) || typeof q !== "string") throw new HttpError(400, "Send milestone, task and question as numbers and the question's text.");
   if (!shortText(answer, MAX_ANSWER)) throw new HttpError(400, `An answer needs some text (up to ${MAX_ANSWER} characters).`);
-  const project = projectOrThrow(id);
-  const data = readProgress(project);
-  const target = data.milestones[milestone]?.tasks?.[task]?.questions?.[question];
-  if (!target) throw new HttpError(404, "There is no question at that position.");
-  if (target.q !== q) throw new HttpError(409, "The list changed since you loaded it. Reload and try again.");
-  target.a = answer.trim();
-  delete target.by; // answered by the user
-  data.updated = new Date().toISOString().slice(0, 10);
-  writeProgress(project, data);
-  return data;
+  return changeLocked(projectOrThrow(id), (data) => {
+    const target = data.milestones[milestone]?.tasks?.[task]?.questions?.[question];
+    if (!target) throw new HttpError(404, "There is no question at that position.");
+    if (target.q !== q) throw new HttpError(409, "The list changed since you loaded it. Reload and try again.");
+    target.a = answer.trim();
+    delete target.by; // answered by the user
+  });
 }
 
 function getDoc(id, wanted) {

@@ -1,142 +1,193 @@
 # solo-keel
 
-The part of every project that keeps it steady: **how the work is done** (rules, workflow
-skills, reviewer agents, hooks) and **where the work stands** (milestones → tasks → steps,
-with progress bars that compute themselves). One install serves every project, in Claude Code
-and Codex, and never overrides a project's own setup.
+**One engineering standard for every project your coding agents touch, and one place to see
+where every project stands.**
+
+solo-keel packages how the work is done (working rules, workflow skills, reviewer agents,
+guard rails) and where the work stands (milestones, tasks and steps with progress that computes
+itself) into a single plugin for Claude Code and Codex. Install it once; every project gets the
+same discipline, and every project's progress is one click away in a shared dashboard.
+
+> Status: v0.1, early release. The progress model, API and dashboard are covered by an
+> automated test suite that runs against every supported runtime.
+
+---
+
+## Why solo-keel
+
+| Without it | With solo-keel |
+| --- | --- |
+| Each project re-explains the same rules to its agents, in slightly different words | One rule set, injected at session start, switchable per project |
+| Agents jump straight into code | Plan first, test first, smallest diff, and a report of what was not verified |
+| "Where are we?" means reading commit logs | Milestone, task and step progress, computed from the real statuses, in a dashboard and in the agent's own context |
+| Decisions wait in chat history | Blocked steps carry their reason; open questions sit on the task until someone answers |
+| Assistant attribution leaks into code, commits and PRs | Hooks and a git hook keep the work in the project's own voice |
+| Requirements live in one tool, progress in another | Each milestone and task links straight to its section of the SRS, plan or ADR |
+
+Built for solo developers and small teams who run several projects with coding agents and want
+them to behave like a disciplined senior engineer, consistently.
+
+## How it works
+
+```mermaid
+flowchart LR
+  subgraph Plugin["solo-keel plugin (installed once)"]
+    R[Rules] --- S[Skills] --- A[Reviewer agents] --- H[Guard hooks]
+  end
+  subgraph Project["Each project"]
+    C[.solo-keel.json] --- P[docs/progress/milestones.json]
+  end
+  Agent["Claude Code / Codex"] -- "session rules, skills, hooks" --> Plugin
+  Agent -- "MCP tools" --> P
+  People["You and your team"] -- "dashboard (Node.js, PHP or Python)" --> P
+  Scripts["CI and scripts"] -- "CLI" --> P
+```
+
+- **Projects keep their data.** A project holds only a small `.solo-keel.json` and its progress
+  file, both in git, reviewable in pull requests next to the code.
+- **Three ways in, one source of truth.** Agents use MCP tools, people use the dashboard,
+  scripts use the CLI. All of them read and write the same file, under a lock, so no update is
+  ever lost.
+- **Never in the way.** Plugin skills are namespaced (`/solo-keel:plan-feature`), so a project's
+  own skills keep working, and every rule module can be switched off per project.
 
 ## What you get
 
-| | |
+**Working rules** (injected at session start, per project switchable)
+- Read before you claim; plan, then build; test first; smallest correct diff.
+- Look up current APIs; say what was not verified.
+- Clean code; accessible, responsive UI by default.
+- No AI footprint in code, commits or pull requests.
+- A lead / secondary-agent model: delegate only bounded work, contract first, always reviewed.
+
+**Workflow skills**
+
+| Skill | Purpose |
 | --- | --- |
-| **Rules** (always on, per project switchable) | Read before you claim · plan, then build · test first · smallest correct diff · look up current APIs · say what you did not verify · clean code · no AI footprint · lead/secondary agent delegation |
-| **Skills** | `/solo-keel:plan-feature` · `/solo-keel:implement-task` · `/solo-keel:delegate-task` · `/solo-keel:review-delegated` · `/solo-keel:adr` · `/solo-keel:commit` · `/solo-keel:clean-code` · `/solo-keel:ui-ux` · `/solo-keel:progress` · `/solo-keel:setup` |
-| **Reviewer agents** | `security-reviewer` · `test-writer` · `ux-reviewer` · `perf-reviewer` |
-| **Hooks** | Rules and a progress line at session start · blocks edits to protected files (secrets, generated code) · blocks AI tool names and attribution in code, commits and PRs |
-| **Progress API** | MCP tools for agents · REST + dashboard for people (Node.js, PHP or Python) · CLI for scripts |
-| **Upstream skills** (optional, pinned) | [ui-ux-pro-max](https://github.com/nextlevelbuilder/ui-ux-pro-max-skill) (MIT) · [engineering](https://github.com/anthropics/knowledge-work-plugins/tree/main/engineering) (Apache-2.0) |
+| `/solo-keel:plan-feature` | A reviewed plan with acceptance criteria, test plan and delegation split, before any code |
+| `/solo-keel:implement-task` | Execute an approved plan step by step: test first, verify, keep progress current |
+| `/solo-keel:delegate-task`, `/solo-keel:review-delegated` | Hand bounded work to a cheaper agent in an isolated worktree, then review it |
+| `/solo-keel:adr` | Architecture Decision Records for invariants, dependencies and contracts |
+| `/solo-keel:commit` | One Conventional Commit, after the project's check passes |
+| `/solo-keel:clean-code`, `/solo-keel:ui-ux` | Review against the code and UI standards |
+| `/solo-keel:progress`, `/solo-keel:setup` | Report or update progress; set a project up |
 
-Plugin skills are namespaced (`/solo-keel:…`), so a project's own `plan-feature` or `ui-ux` keeps
-working unchanged. Rules come from a session-start hook and can be switched off per project.
+**Reviewer agents**: `security-reviewer`, `test-writer`, `ux-reviewer`, `perf-reviewer`.
 
-## Install
+**Guard rails** (hooks that work in both agents)
+- Block edits to secrets and generated code (`protect` patterns).
+- Block AI tool names and attribution in files, patches, commits, tags and PRs.
+- Each edited file is judged by its own project's rules and by the session project's rules.
 
-Needs Node.js 20 or newer.
+**Progress tracking**
+- Statuses: Done, Waiting for your check, In progress, Blocked (with a reason), Not started.
+- Task and milestone statuses are derived, and percentages are always computed, never typed.
+- Questions and answers per task. Answers an agent records stay open until you confirm them.
+- Document links (SRS, architecture, plans, ADRs) at project, milestone and task level.
 
-### Claude Code
+**Dashboard** (served by Node.js, PHP or Python; you pick in a short menu)
+- Whole-project bar, and a "Tasks by status" bar with a legend that filters.
+- A **Needs you** panel: blocked items with reasons, work waiting for your check, open
+  questions.
+- Collapsible milestones and tasks, a status menu on every step (with undo), and answers typed
+  in place.
+- A document reader that renders Markdown and jumps to the linked section.
+- Search (`/`), shareable links, light, dark and system themes, phone layout, keyboard and
+  screen-reader support.
+
+**Optional, pinned upstream plugins** in the same marketplace:
+[ui-ux-pro-max](https://github.com/nextlevelbuilder/ui-ux-pro-max-skill) (MIT) for design
+intelligence, and
+[engineering](https://github.com/anthropics/knowledge-work-plugins/tree/main/engineering)
+(Apache-2.0) for standups, incident response, system design and more.
+
+## Quick start
+
+### 1. Access
+
+This repository is private. Give git access once, so the agents can clone it:
+
+```bash
+gh auth login
+```
+```bash
+gh auth setup-git
+```
+
+### 2. Install the plugin
+
+**Claude Code**
 
 ```text
 /plugin marketplace add meygh/solo-keel
 /plugin install solo-keel@solo-keel
-/plugin install ui-ux-pro-max@solo-keel      # optional
-/plugin install engineering@solo-keel        # optional
 ```
 
-The MCP server comes with the plugin.
+Optional: `/plugin install ui-ux-pro-max@solo-keel` and `/plugin install engineering@solo-keel`.
+The MCP server is included. From a local clone you can also run
+`/plugin marketplace add /path/to/solo-keel`.
 
-### Codex
+**Codex**
 
 ```bash
 codex plugin marketplace add meygh/solo-keel
-codex plugin add solo-keel@solo-keel
-codex plugin add ui-ux-pro-max@solo-keel     # optional
-codex plugin add engineering@solo-keel       # optional
 ```
-
-Codex asks you to trust the plugin's hooks once. Codex does not expand plugin paths in MCP
-settings, so add the MCP server with the path to your solo-keel copy:
-
+```bash
+codex plugin add solo-keel@solo-keel
+```
 ```bash
 codex mcp add solo-keel -- node /path/to/solo-keel/mcp/server.mjs
 ```
 
-### The `solo-keel` command (dashboard, CLI, git hook)
+Codex asks you to trust the plugin's hooks once. The MCP server is added by path because Codex
+does not expand plugin paths in MCP settings.
+
+### 3. Install the command line (dashboard, CLI, git hook)
 
 ```bash
 npm install -g github:meygh/solo-keel
 ```
 
-Or clone this repository and run `node cli/solo-keel.mjs …` from it.
-
-## Use it in a project
+### 4. Connect a project
 
 ```bash
 cd your-project
 solo-keel init --check "make check"
 ```
 
-`init` writes `.solo-keel.json`, a starter `docs/progress/milestones.json` and registers the
-project with the dashboard. It never overwrites existing files. In an agent session,
-`/solo-keel:setup` walks through the same with you and drafts milestones from your roadmap.
+`init` creates `.solo-keel.json` and a starter progress file, and registers the project with
+the dashboard. It never overwrites existing files. Inside an agent session,
+`/solo-keel:setup` does the same interactively and drafts milestones from your roadmap.
 
-Then:
-
-```bash
-solo-keel progress                                   # where we stand
-solo-keel progress --milestone M0                    # every step, numbered
-solo-keel progress set M0 "Repository" 2 doing       # task and step by name, part of a name, or number
-solo-keel progress set M0 "Repository" 3 blocked --reason "Waiting for runner quota"
-solo-keel progress add M1 "Main flow" "Search page"
-solo-keel progress ask M1 "Main flow" "Guest checkout in v1?"
-solo-keel progress answer M1 "Main flow" 1 "Yes"
-solo-keel git-hooks                                  # commit-msg hook: strips assistant attribution
-solo-keel check-ai                                   # scan tracked files for AI tool mentions
-```
-
-Agents do the same through MCP (`progress_summary`, `progress_set_status`,
-`progress_ask`, …): they mark steps started, **waiting for your check** or blocked (with the
-reason), and leave questions for you on the task instead of guessing.
-
-## Dashboard
+### 5. Daily use
 
 ```bash
-./serve          # macOS, Linux, Git Bash
-serve.cmd        # Windows
-solo-keel serve       # anywhere solo-keel is installed
+solo-keel progress
+```
+```bash
+solo-keel serve
 ```
 
-A short menu shows which of **Node.js**, **PHP** and **Python 3** are installed, suggests a
-free port and opens the browser:
+Your agents keep the progress current as they work: steps move to in progress, waiting for your
+check or blocked (with a reason), and questions for you land on the task.
 
-```text
-  solo-keel · project dashboard
-  ──────────────────────────────
-  Projects registered: 3  (/home/sam/.solo-keel)
+## CLI reference
 
-  Serve it with:
-    1) Node.js   v24.0.2
-    2) PHP       8.2.12
-    3) Python 3  3.14.4
-    q) Quit
+| Command | What it does |
+| --- | --- |
+| `solo-keel init [dir]` | Set up a project (`--check`, `--rules`, `--progress`, `--page`, `--no-register`) |
+| `solo-keel progress` | Summary: overall, per milestone, blocked, waiting for your check, open questions, next up |
+| `solo-keel progress --milestone M0` | Every task and step, numbered |
+| `solo-keel progress set M0 "Task" 2 blocked --reason "…"` | Change a step (by name, part of a name, or number) |
+| `solo-keel progress add M1 "Task" "Step"` | Add a step |
+| `solo-keel progress ask M1 "Task" "Question?"` · `answer M1 "Task" 1 "Answer"` | Questions and answers |
+| `solo-keel projects [add <path> \| remove <id>]` | The dashboard's project list |
+| `solo-keel serve [--runtime node\|php\|python] [--port N]` | Start the dashboard |
+| `solo-keel git-hooks` | Install the commit-msg hook that strips assistant attribution |
+| `solo-keel check-ai [files…]` | Scan files for AI tool or vendor mentions |
+| `solo-keel mcp` | Run the MCP server on stdio |
 
-  Choose [1]:
-```
-
-Non-interactive: `./serve --runtime php --port 4800 --no-open` (PowerShell:
-`serve.cmd -Runtime php -Port 4800 -NoOpen`). All three servers implement the same
-[API](docs/API.md), listen on `127.0.0.1` only, refuse foreign hosts and cross-site writes,
-and only write to registered projects' progress files.
-
-What the dashboard gives you:
-
-- **Whole project** bar, and a **Tasks by status** bar with a colored legend (Done, Waiting
-  for your check, In progress, Blocked, Not started) that filters the list when clicked.
-- **Needs you:** everything blocked (with the reason), waiting for your check, or waiting for
-  your answer, one click from the task.
-- **Collapsible milestones and tasks** with status badges; a **?** next to anything blocked
-  shows why (hover or click).
-- A **status menu on every step** (blocked asks for the reason), and **questions and answers**
-  per task that you can answer in place.
-- **Linked documents** (requirements, architecture, plans, ADRs) at project, milestone and
-  task level, opened in a reader that renders Markdown and jumps to the linked section.
-- **Search** (press `/`), paging or "Show all", light, dark and system themes, phone layout.
-
-Every change is saved straight to the project's progress file.
-
-`solo-keel init --page` also copies the page next to a project's progress file, for a standalone
-view that works without solo-keel.
-
-## `.solo-keel.json`
+## Configuration: `.solo-keel.json`
 
 ```json
 {
@@ -149,60 +200,58 @@ view that works without solo-keel.
 }
 ```
 
-Everything is optional. `rules: false` turns the rule context off (useful when the
-project's own `CLAUDE.md`/`AGENTS.md` already says the same). `aiFootprint.allow` lists paths
-that must name AI vendors; configuration files for the tools are always allowed.
+Every field is optional:
+- `rules: false` turns the rule context off, for projects whose own `CLAUDE.md` or `AGENTS.md`
+  already says the same.
+- `aiFootprint.allow` lists paths that must name AI vendors (for example provider adapters).
+- `protect` lists files agents must not edit.
 
-## Progress file
-
-```json
-{
-  "title": "Shop: where we are",
-  "updated": "2026-09-30",
-  "docs": [{ "title": "Requirements", "path": "docs/SRS.md" }],
-  "milestones": [
-    {
-      "id": "M0", "name": "Foundations", "when": "weeks 1–2", "weight": 2,
-      "exit": "A fresh clone builds and runs with one command.",
-      "docs": [{ "title": "M0 in the requirements", "path": "docs/SRS.md#m0-foundations" }],
-      "tasks": [
-        {
-          "name": "Repository and tooling",
-          "questions": [{ "q": "Which CI service?", "a": "GitHub Actions" }],
-          "steps": [
-            { "status": "done", "title": "Repository layout and README" },
-            { "status": "review", "title": "One command for lint and tests" },
-            { "status": "blocked", "title": "Continuous integration", "reason": "Waiting for runner quota" }
-          ]
-        }
-      ]
-    }
-  ]
-}
-```
-
-A step is `done` (counts 1), `review` — waiting for your check (¾), `doing` (½),
-`blocked` with a `reason` (0) or `todo` (0). A task is the share of its steps, a milestone
-the average of its tasks, the project the milestones weighted by `weight`. Task and
-milestone statuses are derived from their steps. Details: [docs/API.md](docs/API.md); schema:
+The progress file format, with every status, questions and document links, is described in
+[docs/API.md](docs/API.md). Its schema is
 [`templates/progress/progress.schema.json`](templates/progress/progress.schema.json).
 
-## Fork or connect
+## Security and privacy
 
-- **Connect (recommended):** install the plugin, run `solo-keel init` per project. Projects keep
-  only `.solo-keel.json` and their progress file; updates arrive with the plugin.
-- **Fork:** fork this repository, change rules and skills to taste, and point the
-  marketplace commands at your fork.
+- **Local only.** The dashboard binds to `127.0.0.1`, answers only loopback clients, and
+  refuses foreign `Host` headers (DNS rebinding) and cross-site writes.
+- **Strict page security.** A strict Content-Security-Policy, and all project text escaped.
+- **Bounded file access.** Reads and writes only registered projects' progress files and the
+  documents those files link. Every path must stay inside the project after symlinks are
+  resolved.
+- **Safe writes.** Writes are atomic and made under a lock; symlinked files are refused.
+- **Agent context.** Project text that reaches an agent is flattened and labelled as data, not
+  instructions. Agents can write only to the current project or registered projects.
+- **No dependencies and no network calls.** Nothing phones home.
+- **Reviewed.** The release has been through two security reviews, with a regression test for
+  every finding.
 
-## Develop
+## Compatibility
+
+| Component | Requirement |
+| --- | --- |
+| Plugin, CLI, MCP, hooks | Node.js 20 or newer |
+| Dashboard | Any one of Node.js 20+, PHP 8.1+ or Python 3.9+ |
+| Agents | Claude Code, Codex |
+| Operating systems | Windows, macOS, Linux |
+
+## Roadmap
+
+- **Storage for large and busy projects.** Optional SQLite storage with change history,
+  per-milestone JSON files, and export / import. The lock that makes today's JSON storage safe
+  with concurrent writers has shipped. Plan: [docs/plans/storage.md](docs/plans/storage.md).
+- Registering the MCP server automatically on Codex install.
+- Editing step titles and notes from the dashboard.
+
+## Development
 
 ```bash
-npm run check    # all tests (the HTTP suite runs against each installed runtime) + AI-mention scan
+npm run check
 ```
 
-See [AGENTS.md](AGENTS.md) for the rules of this repository and [docs/API.md](docs/API.md)
-for the API contract.
+This runs the full test suite (the HTTP contract suite runs against every installed runtime)
+and scans the repository for AI mentions. See [AGENTS.md](AGENTS.md) for contribution rules and
+[docs/API.md](docs/API.md) for the API contract.
 
 ## License
 
-MIT. Upstream plugins listed in the marketplace keep their own licenses.
+MIT © Meisam Ghanbari. The upstream plugins listed in the marketplace keep their own licenses.

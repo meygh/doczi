@@ -11,6 +11,7 @@ import os
 import re
 import sys
 import tempfile
+import time
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 from pathlib import Path
 from urllib.parse import parse_qs, unquote, urlsplit
@@ -146,6 +147,56 @@ def write_atomic(root, path, text):
         except OSError:
             pass
         raise
+
+
+STALE_SECONDS = 30
+
+
+def change_locked(root, path, change):
+    """Read, change and write the progress file while holding its lock.
+
+    Same protocol as the Node.js and PHP servers: an exclusive "<file>.lock" holding a random
+    token, a short wait (SOLO_KEEL_LOCK_TIMEOUT_MS, default 5 s) and a 30 s stale limit.
+    """
+    lock = path + ".lock"
+    token = f"{os.getpid()} {os.urandom(8).hex()}"
+    deadline = time.monotonic() + int(os.environ.get("SOLO_KEEL_LOCK_TIMEOUT_MS") or 5000) / 1000
+    while True:
+        try:
+            fd = os.open(lock, os.O_CREAT | os.O_EXCL | os.O_WRONLY, 0o644)
+            with os.fdopen(fd, "w", encoding="utf-8") as fh:
+                fh.write(token)
+            break
+        except FileExistsError:
+            try:
+                age = time.time() - os.lstat(lock).st_mtime
+            except FileNotFoundError:
+                continue  # released meanwhile
+            if age > STALE_SECONDS:
+                try:
+                    os.unlink(lock)
+                except FileNotFoundError:
+                    pass
+                continue
+            if time.monotonic() >= deadline:
+                raise HttpError(503, "Another change to the progress file is in progress; try again in a moment.")
+            time.sleep(0.025)
+    try:
+        data = read_progress(path)
+        change(data)
+        data["updated"] = today()
+        text = format_progress(data)
+        write_atomic(root, path, text)
+        return text
+    finally:
+        # Remove only our own lock: after a stale break it may belong to someone else.
+        try:
+            with open(lock, encoding="utf-8") as fh:
+                mine = fh.read() == token
+            if mine:
+                os.unlink(lock)
+        except OSError:
+            pass
 
 
 def linked_docs(data):
@@ -286,24 +337,23 @@ class Handler(BaseHTTPRequestHandler):
             raise HttpError(400, f"A blocked step needs a reason (up to {MAX_REASON} characters).")
 
         root, path = find_project(project_id)
-        data = read_progress(path)
-        try:
-            if min(body["milestone"], body["task"], body["step"]) < 0:
-                raise IndexError
-            step = data["milestones"][body["milestone"]]["tasks"][body["task"]]["steps"][body["step"]]
-        except (IndexError, KeyError, TypeError):
-            raise HttpError(404, "There is no step at that position.")
-        if step.get("title") != body["title"]:
-            raise HttpError(409, "The list changed since you loaded it. Reload and try again.")
-        step["status"] = status
-        if status == "blocked":
-            step["reason"] = body["reason"].strip()
-        else:
-            step.pop("reason", None)
-        data["updated"] = today()
-        text = format_progress(data)
-        write_atomic(root, path, text)
-        self.send(200, text)
+
+        def change(data):
+            try:
+                if min(body["milestone"], body["task"], body["step"]) < 0:
+                    raise IndexError
+                step = data["milestones"][body["milestone"]]["tasks"][body["task"]]["steps"][body["step"]]
+            except (IndexError, KeyError, TypeError):
+                raise HttpError(404, "There is no step at that position.")
+            if step.get("title") != body["title"]:
+                raise HttpError(409, "The list changed since you loaded it. Reload and try again.")
+            step["status"] = status
+            if status == "blocked":
+                step["reason"] = body["reason"].strip()
+            else:
+                step.pop("reason", None)
+
+        self.send(200, change_locked(root, path, change))
 
     def patch_question(self, project_id):
         body = self.json_body()
@@ -312,21 +362,20 @@ class Handler(BaseHTTPRequestHandler):
         if not short_text(body.get("answer"), MAX_ANSWER):
             raise HttpError(400, f"An answer needs some text (up to {MAX_ANSWER} characters).")
         root, path = find_project(project_id)
-        data = read_progress(path)
-        try:
-            if min(body["milestone"], body["task"], body["question"]) < 0:
-                raise IndexError
-            question = data["milestones"][body["milestone"]]["tasks"][body["task"]]["questions"][body["question"]]
-        except (IndexError, KeyError, TypeError):
-            raise HttpError(404, "There is no question at that position.")
-        if question.get("q") != body["q"]:
-            raise HttpError(409, "The list changed since you loaded it. Reload and try again.")
-        question["a"] = body["answer"].strip()
-        question.pop("by", None)  # answered by the user
-        data["updated"] = today()
-        text = format_progress(data)
-        write_atomic(root, path, text)
-        self.send(200, text)
+
+        def change(data):
+            try:
+                if min(body["milestone"], body["task"], body["question"]) < 0:
+                    raise IndexError
+                question = data["milestones"][body["milestone"]]["tasks"][body["task"]]["questions"][body["question"]]
+            except (IndexError, KeyError, TypeError):
+                raise HttpError(404, "There is no question at that position.")
+            if question.get("q") != body["q"]:
+                raise HttpError(409, "The list changed since you loaded it. Reload and try again.")
+            question["a"] = body["answer"].strip()
+            question.pop("by", None)  # answered by the user
+
+        self.send(200, change_locked(root, path, change))
 
     def get_doc(self, project_id, wanted):
         not_found = HttpError(404, "That document is not linked from this project's progress file.")

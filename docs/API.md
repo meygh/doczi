@@ -97,6 +97,11 @@ suite (`test/http-contract.test.mjs`) against each runtime that is installed.
 - Reads and writes only registered projects' progress files and the documents those files
   link. Every path must resolve inside the project after following symlinks; a symlinked
   progress file is refused.
+- Every change holds the progress file's lock for its whole read → change → write: an
+  exclusive `<file>.lock` holding a random token, created by whichever writer comes first (CLI,
+  MCP, any server). Others wait up to 5 s (`SOLO_KEEL_LOCK_TIMEOUT_MS`), then get `503`. A lock
+  older than 30 s is treated as left by a crashed writer and removed; a writer removes only its
+  own lock.
 - Writes are atomic (an exclusive, randomly named temporary file, then rename), keep one step
   per line, and set `updated` to today.
 - Every response has `Cache-Control: no-store` and `X-Content-Type-Options: nosniff`; pages
@@ -138,7 +143,8 @@ is the user's: it removes the `"by": "agent"` marker that `progress_answer` sets
 
 Both PATCH endpoints return `200` with the whole updated progress file, or `400` bad JSON,
 missing fields or a bad value · `404` unknown project or nothing at that position · `409` the
-item at that position changed (reload and try again).
+item at that position changed (reload and try again) · `503` another change held the file's lock
+for longer than the wait (try again).
 
 ### Dashboard
 
