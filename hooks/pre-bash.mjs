@@ -2,23 +2,22 @@
 // PreToolUse on shell commands: block commit, tag and PR text that mentions AI tools, and
 // check patches applied through the shell like direct edits.
 import { block, guarded, project, readInput } from "./lib.mjs";
-import { commitTextOf, patchIn, scanText } from "../lib/ai-terms.mjs";
-import { AI_RULE, changesFromPatch, checkChanges } from "../lib/edit-check.mjs";
+import { commitTextOf, patchesIn, scanText } from "../lib/ai-terms.mjs";
+import { AI_RULE, changesFromPatches, checkChanges } from "../lib/edit-check.mjs";
 
 guarded(() => {
   const input = readInput();
   if (!input) process.exit(0);
   const ctx = project(input);
-  if (!ctx.config) process.exit(0);
   const command = input.tool_input?.command ?? input.tool_input?.cmd;
 
-  const patch = patchIn(command);
-  if (patch) {
-    const problems = checkChanges(changesFromPatch(patch, input.cwd || process.cwd()), ctx);
+  const patches = patchesIn(command);
+  if (patches.length) {
+    const problems = checkChanges(changesFromPatches(patches, input.cwd || process.cwd()), ctx);
     if (problems.length) block(["keel blocked this patch:", ...problems.map((p) => `- ${p}`), ...(problems.some((p) => p.includes(" line ")) ? [AI_RULE] : [])]);
   }
 
-  if (!ctx.config.aiFootprint.check) process.exit(0);
+  if (!ctx.config?.aiFootprint.check) process.exit(0);
   const text = commitTextOf(command);
   if (!text) process.exit(0);
   // Scan the whole command as one block so multi-line messages and trailers are caught.

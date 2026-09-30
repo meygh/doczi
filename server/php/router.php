@@ -4,6 +4,10 @@
 // Usage: php -S 127.0.0.1:4800 server/php/router.php
 declare(strict_types=1);
 
+// Never print PHP errors into responses; log them to the console instead.
+ini_set('display_errors', '0');
+ini_set('log_errors', '1');
+
 const MAX_BODY = 65536;
 const MAX_DOC = 2097152;
 const MAX_REASON = 2000;
@@ -14,6 +18,7 @@ const FILES = [
     '/' => ['index.html', 'text/html; charset=utf-8'],
     '/index.html' => ['index.html', 'text/html; charset=utf-8'],
     '/app.js' => ['app.js', 'text/javascript; charset=utf-8'],
+    '/markdown.js' => ['markdown.js', 'text/javascript; charset=utf-8'],
     '/theme.js' => ['theme.js', 'text/javascript; charset=utf-8'],
     '/style.css' => ['style.css', 'text/css; charset=utf-8'],
 ];
@@ -44,7 +49,8 @@ function send(int $status, string $body, string $type = 'application/json; chars
 
 function sendJson(int $status, $data): void
 {
-    send($status, json_encode($data, JSON_UNESCAPED_SLASHES | JSON_UNESCAPED_UNICODE));
+    $json = json_encode($data, JSON_UNESCAPED_SLASHES | JSON_UNESCAPED_UNICODE | JSON_INVALID_UTF8_SUBSTITUTE);
+    send($status, $json === false ? '{"error":"Server error."}' : $json);
 }
 
 function keelHome(): string
@@ -297,6 +303,7 @@ function patchQuestion(string $id, int $port): void
         throw new HttpError(409, 'The list changed since you loaded it. Reload and try again.');
     }
     $question->a = trim($body['answer']);
+    unset($question->by); // answered by the user
     $data->updated = gmdate('Y-m-d');
     $text = formatProgress($data);
     writeAtomic($root, $path, $text);
@@ -333,7 +340,7 @@ function getDoc(string $id, string $wanted): void
 {
     $notFound = new HttpError(404, 'That document is not linked from this project\'s progress file.');
     $rel = preg_replace('#^\./#', '', str_replace('\\', '/', trim(explode('#', $wanted)[0])));
-    if ($rel === '' || !preg_match('/\.(md|markdown|txt)$/i', $rel)) {
+    if ($rel === '' || str_contains($rel, ':') || !preg_match('/\.(md|markdown|txt)$/i', $rel)) {
         throw $notFound;
     }
     [$root, $path] = findProject($id);
@@ -355,6 +362,16 @@ function getDoc(string $id, string $wanted): void
     $text = preg_replace('/^\xEF\xBB\xBF/', '', (string) file_get_contents($file));
     sendJson(200, ['path' => $rel, 'text' => $text]);
 }
+
+set_exception_handler(function (Throwable $e): void {
+    error_log((string) $e);
+    if (!headers_sent()) {
+        http_response_code(500);
+        header('Content-Type: application/json; charset=utf-8');
+        header('X-Content-Type-Options: nosniff');
+    }
+    echo '{"error":"Server error; see the server console."}';
+});
 
 $port = (int) ($_SERVER['SERVER_PORT'] ?? 0);
 $method = $_SERVER['REQUEST_METHOD'] ?? 'GET';

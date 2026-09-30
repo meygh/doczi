@@ -22,6 +22,12 @@ function writableProject(ref) {
 }
 
 const root = fileURLToPath(new URL("..", import.meta.url));
+
+// Tool arguments are not validated against inputSchema by the protocol; check them here.
+function knownModule(name) {
+  if (!RULE_MODULES.includes(name)) throw new Error(`No rule module "${name}". Choose from ${RULE_MODULES.join(", ")}.`);
+  return name;
+}
 const version = JSON.parse(fs.readFileSync(path.join(root, "package.json"), "utf8")).version;
 const SUPPORTED = ["2025-06-18", "2025-03-26", "2024-11-05"];
 
@@ -77,15 +83,15 @@ ${listText(readProgress(openProject(a.project)), a.milestone)}`,
   },
   {
     name: "progress_answer",
-    description: "Record the user's answer to a question on a task (only answers the user gave you).",
+    description: "Record an answer to a question on a task, as the user told it to you. It is marked as recorded by the agent and stays in the user's list until they confirm it.",
     inputSchema: {
       type: "object",
       required: ["milestone", "task", "question", "answer"],
       properties: { project, milestone: { type: "string" }, task: ref("Task name or number"), question: ref("Question text or number"), answer: { type: "string" } },
     },
     run: (a) => {
-      const r = updateProgress(writableProject(a.project), (d) => answerQuestion(d, a));
-      return `Answered on ${r.milestone} › ${r.task}: ${r.question} → ${r.answer}`;
+      const r = updateProgress(writableProject(a.project), (d) => answerQuestion(d, { ...a, by: "agent" }));
+      return `Recorded on ${r.milestone} › ${r.task}: ${r.question} → ${r.answer} (waiting for the user to confirm)`;
     },
   },
   {
@@ -111,7 +117,7 @@ ${listText(readProgress(openProject(a.project)), a.milestone)}`,
     name: "rules_get",
     description: `The text of a keel rule module: ${RULE_MODULES.join(", ")}. Default: all.`,
     inputSchema: { type: "object", properties: { module: { type: "string", enum: RULE_MODULES } } },
-    run: (a) => (a.module ? [a.module] : RULE_MODULES).map((m) => fs.readFileSync(path.join(root, "rules", `${m}.md`), "utf8").trim()).join("\n\n"),
+    run: (a) => (a.module ? [knownModule(a.module)] : RULE_MODULES).map((m) => fs.readFileSync(path.join(root, "rules", `${m}.md`), "utf8").trim()).join("\n\n"),
   },
 ];
 

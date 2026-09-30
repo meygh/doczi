@@ -69,7 +69,7 @@ function makeFixture() {
       tasks: [{
         name: "Setup",
         steps: [{ status: "todo", title: "Repo" }, { status: "doing", title: "CI" }],
-        questions: [{ q: "Which CI?" }],
+        questions: [{ q: "Which CI?", a: "Jenkins", by: "agent" }],
         docs: [{ title: "Huge", path: "docs/big.md" }],
       }],
     }],
@@ -177,6 +177,7 @@ for (const rt of RUNTIMES) {
       const r = await at({ answer: "GitHub Actions" });
       assert.equal(r.status, 200, r.text);
       assert.equal(r.json.milestones[0].tasks[0].questions[0].a, "GitHub Actions");
+      assert.equal(r.json.milestones[0].tasks[0].questions[0].by, undefined, "an answer from the dashboard is the user's");
       assert.equal(JSON.parse(fs.readFileSync(fx.demoFile, "utf8")).milestones[0].tasks[0].questions[0].a, "GitHub Actions");
     });
 
@@ -188,7 +189,7 @@ for (const rt of RUNTIMES) {
       assert.equal((await doc("docs/SRS.md#goals")).status, 200);
       assert.equal((await doc("docs/plan.txt")).json.text, "Plan text");
       assert.equal((await doc("docs/big.md")).status, 413);
-      for (const p of ["docs/secret.md", "../demo/docs/SRS.md", "docs/../docs/SRS.md", "C:/Windows/win.ini", "/etc/passwd", ".keel.json", ""]) {
+      for (const p of ["docs/secret.md", "../demo/docs/SRS.md", "docs/../docs/SRS.md", "C:/Windows/win.ini", "/etc/passwd", ".keel.json", "", "docs/SRS.md:hidden.md", "docs/SRS.md::$DATA"]) {
         assert.equal((await doc(p)).status, 404, p);
       }
     });
@@ -198,6 +199,8 @@ for (const rt of RUNTIMES) {
       assert.equal((await request(port, "GET", "/", { headers: { Host: `evil.example:${port}` } })).status, 403);
       const body = { milestone: 0, task: 0, step: 1, title: "CI", status: "done" };
       assert.equal((await request(port, "PATCH", "/api/projects/demo/steps", { body, headers: { Origin: "http://evil.example" } })).status, 403);
+      assert.equal((await request(port, "PATCH", "/api/projects/demo/steps", { body, headers: { Origin: `127.0.0.1:${port}` } })).status, 403);
+      assert.equal((await request(port, "PATCH", "/api/projects/demo/steps", { body, headers: { Origin: "null" } })).status, 403);
       assert.equal((await request(port, "PATCH", "/api/projects/demo/steps", { body, headers: { Origin: `http://localhost:${port}` } })).status, 200);
       assert.equal((await request(port, "PATCH", "/api/projects/demo/steps", { body, headers: { "Content-Type": "text/plain" } })).status, 415);
       assert.equal((await request(port, "PATCH", "/api/projects/demo/steps", { body: JSON.stringify({ ...body, pad: "x".repeat(70000) }) })).status, 413);
@@ -209,6 +212,10 @@ for (const rt of RUNTIMES) {
       assert.match(page.headers["content-type"], /text\/html/);
       assert.match(page.headers["content-security-policy"], /default-src 'self'/);
       assert.match((await request(port, "GET", "/app.js")).headers["content-type"], /javascript/);
+      assert.match((await request(port, "GET", "/markdown.js")).headers["content-type"], /javascript/);
+      const bad = await request(port, "GET", "/api/projects/%E0%A4%A/progress");
+      assert.ok([400, 404].includes(bad.status), `bad encoding gave ${bad.status}`);
+      assert.match(bad.headers["content-type"], /application\/json/);
       for (const p of ["/package.json", "/../package.json", "/%2e%2e/package.json", "/server.mjs", "/router.php", "/api/nope"]) {
         assert.equal((await request(port, "GET", p)).status, 404, p);
       }

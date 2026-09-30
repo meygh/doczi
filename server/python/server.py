@@ -28,6 +28,7 @@ FILES = {
     "/": ("index.html", "text/html; charset=utf-8"),
     "/index.html": ("index.html", "text/html; charset=utf-8"),
     "/app.js": ("app.js", "text/javascript; charset=utf-8"),
+    "/markdown.js": ("markdown.js", "text/javascript; charset=utf-8"),
     "/theme.js": ("theme.js", "text/javascript; charset=utf-8"),
     "/style.css": ("style.css", "text/css; charset=utf-8"),
 }
@@ -129,10 +130,15 @@ def format_progress(data):
 def write_atomic(root, path, text):
     """An exclusive, randomly named temp file, then replace the target."""
     assert_inside(root, path)
+    try:
+        mode = os.stat(path).st_mode & 0o777
+    except OSError:
+        mode = 0o644
     fd, tmp = tempfile.mkstemp(dir=os.path.dirname(path), prefix=os.path.basename(path) + ".", suffix=".tmp")
     try:
         with os.fdopen(fd, "w", encoding="utf-8", newline="\n") as fh:
             fh.write(text)
+        os.chmod(tmp, mode)  # mkstemp creates 0600 files; keep the file's own mode
         os.replace(tmp, path)
     except BaseException:
         try:
@@ -202,7 +208,7 @@ class Handler(BaseHTTPRequestHandler):
         if not re.match(r"application/json\b", self.headers.get("Content-Type", ""), re.I):
             raise HttpError(415, "Send JSON (Content-Type: application/json).")
         origin = self.headers.get("Origin")
-        if origin is not None and origin.removeprefix("http://") not in self.allowed_hosts():
+        if origin is not None and origin not in {f"http://{h}" for h in self.allowed_hosts()}:
             raise HttpError(403, "Cross-site requests are not allowed.")
         try:
             length = int(self.headers.get("Content-Length") or 0)
@@ -316,6 +322,7 @@ class Handler(BaseHTTPRequestHandler):
         if question.get("q") != body["q"]:
             raise HttpError(409, "The list changed since you loaded it. Reload and try again.")
         question["a"] = body["answer"].strip()
+        question.pop("by", None)  # answered by the user
         data["updated"] = today()
         text = format_progress(data)
         write_atomic(root, path, text)
@@ -324,7 +331,7 @@ class Handler(BaseHTTPRequestHandler):
     def get_doc(self, project_id, wanted):
         not_found = HttpError(404, "That document is not linked from this project's progress file.")
         rel = re.sub(r"^\./", "", wanted.split("#")[0].strip().replace("\\", "/"))
-        if not rel or not DOC_TYPES.search(rel):
+        if not rel or ":" in rel or not DOC_TYPES.search(rel):
             raise not_found
         root, path = find_project(project_id)
         if rel not in linked_docs(read_progress(path)):

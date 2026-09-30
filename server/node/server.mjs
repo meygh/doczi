@@ -5,7 +5,7 @@ import fs from "node:fs";
 import http from "node:http";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
-import { applyStatus, linkedDocs, STATUSES } from "../../lib/progress.mjs";
+import { applyStatus, linkedDocs, parse, STATUSES } from "../../lib/progress.mjs";
 import { get, list } from "../../lib/registry.mjs";
 import { assertInside, openProject, readProgress, writeProgress } from "../../lib/store.mjs";
 
@@ -22,11 +22,13 @@ const FILES = {
   "/": ["index.html", "text/html; charset=utf-8"],
   "/index.html": ["index.html", "text/html; charset=utf-8"],
   "/app.js": ["app.js", "text/javascript; charset=utf-8"],
+  "/markdown.js": ["markdown.js", "text/javascript; charset=utf-8"],
   "/theme.js": ["theme.js", "text/javascript; charset=utf-8"],
   "/style.css": ["style.css", "text/css; charset=utf-8"],
 };
 const CSP = "default-src 'self'; img-src 'self' data:; base-uri 'none'; form-action 'none'; frame-ancestors 'none'";
 const allowedHosts = new Set([`127.0.0.1:${PORT}`, `localhost:${PORT}`]);
+const allowedOrigins = new Set([...allowedHosts].map((h) => `http://${h}`));
 const LOOPBACK = new Set(["127.0.0.1", "::1", "::ffff:127.0.0.1"]);
 
 class HttpError extends Error {
@@ -57,9 +59,13 @@ function readBody(req) {
 async function jsonBody(req) {
   if (!/^application\/json\b/i.test(req.headers["content-type"] || "")) throw new HttpError(415, "Send JSON (Content-Type: application/json).");
   const origin = req.headers.origin;
-  if (origin && !allowedHosts.has(origin.replace(/^http:\/\//, ""))) throw new HttpError(403, "Cross-site requests are not allowed.");
+  if (origin !== undefined && !allowedOrigins.has(origin)) throw new HttpError(403, "Cross-site requests are not allowed.");
   const text = await readBody(req);
   try { return JSON.parse(text) ?? {}; } catch { throw new HttpError(400, "The body is not valid JSON."); }
+}
+
+function decodeId(raw) {
+  try { return decodeURIComponent(raw); } catch { throw new HttpError(400, "The project id is not valid."); }
 }
 
 function projectOrThrow(id) {
@@ -105,6 +111,7 @@ async function patchQuestion(req, id) {
   if (!target) throw new HttpError(404, "There is no question at that position.");
   if (target.q !== q) throw new HttpError(409, "The list changed since you loaded it. Reload and try again.");
   target.a = answer.trim();
+  delete target.by; // answered by the user
   data.updated = new Date().toISOString().slice(0, 10);
   writeProgress(project, data);
   return data;
@@ -113,9 +120,12 @@ async function patchQuestion(req, id) {
 function getDoc(id, wanted) {
   const notFound = new HttpError(404, "That document is not linked from this project's progress file.");
   const rel = String(wanted || "").split("#")[0].trim().replace(/\\/g, "/").replace(/^\.\//, "");
-  if (!rel || !DOC_TYPES.test(rel)) throw notFound;
+  if (!rel || rel.includes(":") || !DOC_TYPES.test(rel)) throw notFound;
   const project = projectOrThrow(id);
-  if (!linkedDocs(readProgress(project)).has(rel)) throw notFound;
+  // Read without full validation, like the PHP and Python servers: one bad entry must not hide every document.
+  let data;
+  try { data = parse(fs.readFileSync(project.progressPath, "utf8")); } catch { throw new HttpError(500, "The progress file is not valid JSON."); }
+  if (!Array.isArray(data?.milestones) || !linkedDocs(data).has(rel)) throw notFound;
   const file = path.resolve(project.root, rel);
   try { assertInside(project.root, file); } catch { throw notFound; }
   let stat;
@@ -142,16 +152,16 @@ const server = http.createServer(async (req, res) => {
       return send(res, 200, { projects: list().map((p) => ({ id: p.id, name: p.name, hasProgress: hasProgress(p) })) });
     }
     if (req.method === "GET" && (m = route.match(/^\/api\/projects\/([^/]+)\/progress$/))) {
-      return send(res, 200, fs.readFileSync(projectOrThrow(decodeURIComponent(m[1])).progressPath, "utf8"));
+      return send(res, 200, fs.readFileSync(projectOrThrow(decodeId(m[1])).progressPath, "utf8"));
     }
     if (req.method === "GET" && (m = route.match(/^\/api\/projects\/([^/]+)\/docs$/))) {
-      return send(res, 200, getDoc(decodeURIComponent(m[1]), url.searchParams.get("path")));
+      return send(res, 200, getDoc(decodeId(m[1]), url.searchParams.get("path")));
     }
     if (req.method === "PATCH" && (m = route.match(/^\/api\/projects\/([^/]+)\/steps$/))) {
-      return send(res, 200, await patchStep(req, decodeURIComponent(m[1])));
+      return send(res, 200, await patchStep(req, decodeId(m[1])));
     }
     if (req.method === "PATCH" && (m = route.match(/^\/api\/projects\/([^/]+)\/questions$/))) {
-      return send(res, 200, await patchQuestion(req, decodeURIComponent(m[1])));
+      return send(res, 200, await patchQuestion(req, decodeId(m[1])));
     }
     throw new HttpError(404, "Not found.");
   } catch (err) {

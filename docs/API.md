@@ -57,7 +57,7 @@ A task's status is derived: **blocked** if any step is blocked (or the task has 
 from their tasks the same way. Percentages are never stored.
 
 `docs` paths are relative to the project root, may end in `#anchor` (a heading id, GitHub
-style), and must stay inside the project. Only `.md`, `.markdown` and `.txt` files open in the
+style), must stay inside the project and may not contain `:`. Only `.md`, `.markdown` and `.txt` files open in the
 reader. Schema: `templates/progress/progress.schema.json`.
 
 ## MCP tools
@@ -69,7 +69,7 @@ reader. Schema: `templates/progress/progress.schema.json`.
 | `progress_set_status` | `project?`, `milestone`, `task`, `step`, `status`, `reason?` | `M0 › Task › Step: todo → doing` |
 | `progress_add_step` | `project?`, `milestone`, `task`, `title`, `status?` | Confirmation |
 | `progress_ask` | `project?`, `milestone`, `task`, `question` | Records a question for the user |
-| `progress_answer` | `project?`, `milestone`, `task`, `question`, `answer` | Records the user's answer |
+| `progress_answer` | `project?`, `milestone`, `task`, `question`, `answer` | Records an answer the user gave, marked `"by": "agent"` until the user confirms it in the dashboard |
 | `projects_list` | — | Registered projects |
 | `rules_get` | `module?` | Text of a rule module |
 
@@ -90,9 +90,9 @@ suite (`test/http-contract.test.mjs`) against each runtime that is installed.
 - Rejects any request whose `Host` is not `127.0.0.1:<port>` or `localhost:<port>` (`403`):
   blocks DNS-rebinding pages.
 - Writes need `Content-Type: application/json` (`415` otherwise); when an `Origin` header is
-  present it must be `http://127.0.0.1:<port>` or `http://localhost:<port>` (`403`). Bodies over
+  present it must be exactly `http://127.0.0.1:<port>` or `http://localhost:<port>` (`403`). Bodies over
   64 KiB are refused (`413`).
-- Serves only the dashboard files (`index.html`, `app.js`, `theme.js`, `style.css`);
+- Serves only the dashboard files (`index.html`, `app.js`, `markdown.js`, `theme.js`, `style.css`);
   everything else is `404`.
 - Reads and writes only registered projects' progress files and the documents those files
   link. Every path must resolve inside the project after following symlinks; a symlinked
@@ -133,7 +133,8 @@ title, so a stale page cannot change the wrong step. `reason` is required for `b
 { "milestone": 0, "task": 4, "question": 0, "q": "Which CI service?", "answer": "GitHub Actions" }
 ```
 
-`q` must equal the question's current text; `answer` up to 4000 characters.
+`q` must equal the question's current text; `answer` up to 4000 characters. An answer saved here
+is the user's: it removes the `"by": "agent"` marker that `progress_answer` sets.
 
 Both PATCH endpoints return `200` with the whole updated progress file, or `400` bad JSON,
 missing fields or a bad value · `404` unknown project or nothing at that position · `409` the

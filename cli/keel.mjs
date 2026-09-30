@@ -8,11 +8,12 @@ import { isAllowed, scanText } from "../lib/ai-terms.mjs";
 import { DEFAULT_CONFIG, findRoot, loadConfig, RULE_MODULES } from "../lib/config.mjs";
 import { addQuestion, addStep, answerQuestion, format, parse, setStatus } from "../lib/progress.mjs";
 import { list, register, unregister } from "../lib/registry.mjs";
-import { listText, summaryText } from "../lib/report.mjs";
-import { openProject, readProgress, updateProgress } from "../lib/store.mjs";
+import { clean, listText, summaryText } from "../lib/report.mjs";
+import { occupied } from "../lib/fsutil.mjs";
+import { assertInside, openProject, readProgress, updateProgress, writeFileAtomic } from "../lib/store.mjs";
 
 const KEEL = path.resolve(fileURLToPath(new URL("..", import.meta.url)));
-const WEB_FILES = ["index.html", "app.js", "theme.js", "style.css"];
+const WEB_FILES = ["index.html", "app.js", "markdown.js", "theme.js", "style.css"];
 
 const HELP = `keel — working rules, skills and progress tracking for your projects
 
@@ -70,7 +71,21 @@ function init(args) {
   const name = args.flags.name || path.basename(root);
   const report = [];
 
-  if (fs.existsSync(configFile)) {
+  // Create a new file inside the project without ever writing through a symlink (a cloned
+  // repo may contain dangling links that point elsewhere). Returns false when it already exists.
+  const create = (file, content) => {
+    if (occupied(file)) {
+      if (fs.lstatSync(file).isSymbolicLink()) throw new UsageError(`${path.relative(root, file)} is a symbolic link; keel will not write through it.`);
+      return false;
+    }
+    try { assertInside(root, file); } catch { throw new UsageError(`${path.relative(root, file)} would land outside the project; keel will not write it.`); }
+    fs.mkdirSync(path.dirname(file), { recursive: true });
+    assertInside(root, file);
+    writeFileAtomic(file, content);
+    return true;
+  };
+
+  if (occupied(configFile) && !fs.lstatSync(configFile).isSymbolicLink()) {
     report.push("Kept the existing .keel.json.");
   } else {
     const rules = args.flags["no-rules"] ? false
@@ -85,29 +100,24 @@ function init(args) {
       aiFootprint: { check: true, allow: [], terms: [] },
       protect: DEFAULT_CONFIG.protect,
     };
-    fs.writeFileSync(configFile, JSON.stringify(config, null, 2) + "\n");
+    create(configFile, JSON.stringify(config, null, 2) + "\n");
     report.push("Created .keel.json.");
   }
 
   const project = openProject(root);
-  if (fs.existsSync(project.progressPath)) {
-    report.push(`Kept the existing progress file (${project.config.progress}).`);
-  } else {
-    const data = parse(fs.readFileSync(path.join(KEEL, "templates/progress/milestones.example.json"), "utf8"));
-    data.title = `${project.config.name}: where we are`;
-    data.updated = new Date().toISOString().slice(0, 10);
-    delete data.$schema;
-    fs.mkdirSync(path.dirname(project.progressPath), { recursive: true });
-    fs.writeFileSync(project.progressPath, format(data));
-    report.push(`Created a starter progress file (${project.config.progress}); replace its milestones with yours.`);
-  }
+  const data = parse(fs.readFileSync(path.join(KEEL, "templates/progress/milestones.example.json"), "utf8"));
+  data.title = `${clean(project.config.name, 80)}: where we are`;
+  data.updated = new Date().toISOString().slice(0, 10);
+  delete data.$schema;
+  if (create(project.progressPath, format(data))) report.push(`Created a starter progress file (${project.config.progress}); replace its milestones with yours.`);
+  else report.push(`Kept the existing progress file (${project.config.progress}).`);
 
   if (args.flags.page) {
     const dir = path.dirname(project.progressPath);
     for (const f of [...WEB_FILES, "progress.schema.json"]) {
       const to = path.join(dir, f);
-      if (fs.existsSync(to)) { report.push(`Kept ${path.relative(root, to)}.`); continue; }
-      fs.copyFileSync(path.join(KEEL, f === "progress.schema.json" ? "templates/progress" : "web", f), to);
+      const source = fs.readFileSync(path.join(KEEL, f === "progress.schema.json" ? "templates/progress" : "web", f), "utf8");
+      if (!create(to, source)) report.push(`Kept ${path.relative(root, to)}.`);
     }
     report.push(`Copied the dashboard page into ${path.relative(root, dir) || "."} (serve that folder, or use "keel serve").`);
   }

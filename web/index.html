@@ -3,6 +3,7 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
+<meta http-equiv="Content-Security-Policy" content="default-src 'self'; img-src 'self' data:; base-uri 'none'; form-action 'none'">
 <title>Project progress</title>
 <script src="theme.js"></script>
 <link rel="stylesheet" href="style.css">
@@ -121,6 +122,7 @@
 </dialog>
 
 <div class="toast" id="toast" role="status" aria-live="polite"><span id="toast-text"></span><button type="button" id="toast-undo" hidden>Undo</button></div>
+<script src="markdown.js"></script>
 <script src="app.js"></script>
 </body>
 </html>
