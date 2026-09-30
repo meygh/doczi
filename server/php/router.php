@@ -1,5 +1,5 @@
 <?php
-// keel dashboard + REST API on PHP's built-in server. Contract: docs/API.md (same as the
+// solo-keel dashboard + REST API on PHP's built-in server. Contract: docs/API.md (same as the
 // Node.js and Python servers).
 // Usage: php -S 127.0.0.1:4800 server/php/router.php
 declare(strict_types=1);
@@ -55,12 +55,12 @@ function sendJson(int $status, $data): void
 
 function keelHome(): string
 {
-    $home = getenv('KEEL_HOME');
+    $home = getenv('SOLO_KEEL_HOME');
     if ($home) {
         return $home;
     }
     $user = getenv('HOME') ?: getenv('USERPROFILE') ?: '.';
-    return $user . DIRECTORY_SEPARATOR . '.keel';
+    return $user . DIRECTORY_SEPARATOR . '.solo-keel';
 }
 
 function projects(): array
@@ -137,7 +137,7 @@ function progressPath(array $project): ?string
 {
     $root = normalizePath((string) ($project['path'] ?? ''));
     $rel = 'docs/progress/milestones.json';
-    $configFile = $root . '/.keel.json';
+    $configFile = $root . '/.solo-keel.json';
     if (is_file($configFile)) {
         $config = json_decode(preg_replace('/^\xEF\xBB\xBF/', '', (string) file_get_contents($configFile)), true);
         if (is_array($config) && is_string($config['progress'] ?? null)) {

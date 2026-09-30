@@ -1,7 +1,7 @@
-// keel commit-msg hook: removes assistant attribution (co-author trailers, "generated with"
+// solo-keel commit-msg hook: removes assistant attribution (co-author trailers, "generated with"
 // footers), then refuses the commit if the message still mentions an AI tool or vendor.
-// Standalone on purpose: it keeps working when keel moves or updates.
-// Turn it off for one repo with "aiFootprint": { "check": false } in .keel.json.
+// Standalone on purpose: it keeps working when solo-keel moves or updates.
+// Turn it off for one repo with "aiFootprint": { "check": false } in .solo-keel.json.
 const fs = require("fs");
 const path = require("path");
 
@@ -19,10 +19,10 @@ if (!file) process.exit(0);
 let extra = [];
 try {
   const root = require("child_process").execSync("git rev-parse --show-toplevel", { encoding: "utf8" }).trim();
-  const config = JSON.parse(fs.readFileSync(path.join(root, ".keel.json"), "utf8").replace(/^﻿/, ""));
+  const config = JSON.parse(fs.readFileSync(path.join(root, ".solo-keel.json"), "utf8").replace(/^﻿/, ""));
   if (config.aiFootprint && config.aiFootprint.check === false) process.exit(0);
   extra = (config.aiFootprint && config.aiFootprint.terms) || [];
-} catch (e) { /* no .keel.json: defaults */ }
+} catch (e) { /* no .solo-keel.json: defaults */ }
 
 const kept = fs.readFileSync(file, "utf8").split(/\r?\n/).filter((line) =>
   !/^\s*co-authored-by:.*(claude|anthropic|openai|chatgpt|copilot|codex|gemini|noreply@anthropic\.com)/i.test(line) &&

@@ -4,7 +4,7 @@ description: Review a diff, file or folder against the clean-code rules and fix 
 argument-hint: "[path, 'staged' or 'diff' (default)]"
 ---
 
-Review: $ARGUMENTS (nothing given means the current diff), against the clean-code rules (keel `rules/clean-code.md`,
+Review: $ARGUMENTS (nothing given means the current diff), against the clean-code rules (solo-keel `rules/clean-code.md`,
 plus the project's own style guides, which win).
 
 1. Collect the scope: `git diff` and `git diff --staged` by default, or the given path. Read

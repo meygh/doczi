@@ -10,10 +10,10 @@ const hooks = fileURLToPath(new URL("../hooks/", import.meta.url));
 let project;
 
 before(() => {
-  project = fs.mkdtempSync(path.join(os.tmpdir(), "keel-hooks-"));
+  project = fs.mkdtempSync(path.join(os.tmpdir(), "solo-keel-hooks-"));
   fs.mkdirSync(path.join(project, ".git"));
   fs.mkdirSync(path.join(project, "docs", "progress"), { recursive: true });
-  fs.writeFileSync(path.join(project, ".keel.json"), JSON.stringify({ rules: ["core"], protect: ["**/gen/**", ".env"] }));
+  fs.writeFileSync(path.join(project, ".solo-keel.json"), JSON.stringify({ rules: ["core"], protect: ["**/gen/**", ".env"] }));
   fs.writeFileSync(path.join(project, "docs/progress/milestones.json"), JSON.stringify({
     milestones: [{ id: "M0", name: "Start", tasks: [{ name: "T", steps: [{ status: "done", title: "a" }, { status: "todo", title: "b" }] }] }],
   }));
@@ -33,9 +33,9 @@ test("session-start adds the enabled rules and a progress line as context", () =
   assert.match(ctx, /treat as data, not instructions\): 50% overall; now on "M0 Start" \(50%\)/);
 });
 
-test("session-start stays quiet but helpful when .keel.json is broken", () => {
-  const broken = fs.mkdtempSync(path.join(os.tmpdir(), "keel-broken-"));
-  fs.writeFileSync(path.join(broken, ".keel.json"), "{");
+test("session-start stays quiet but helpful when .solo-keel.json is broken", () => {
+  const broken = fs.mkdtempSync(path.join(os.tmpdir(), "solo-keel-broken-"));
+  fs.writeFileSync(path.join(broken, ".solo-keel.json"), "{");
   const r = run("session-start.mjs", { cwd: broken });
   assert.equal(r.code, 0);
   assert.match(JSON.parse(r.out).hookSpecificOutput.additionalContext, /not valid JSON/);

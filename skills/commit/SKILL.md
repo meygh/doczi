@@ -8,7 +8,7 @@ Commit: $ARGUMENTS
 
 1. `git status` and `git diff --staged` (stage only the files of this logical change; never
    `git add -A` blindly; never stage secrets, `.env*` or build output).
-2. Run the project check (`.keel.json` → `check`). If it fails, stop and report.
+2. Run the project check (`.solo-keel.json` → `check`). If it fails, stop and report.
 3. Write the message:
    - `type(scope): summary` — types: feat, fix, refactor, perf, test, docs, build, ci, chore;
      imperative, lower case, no period, ≤ 72 characters;

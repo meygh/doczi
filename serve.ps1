@@ -1,4 +1,4 @@
-﻿# keel dashboard launcher (Windows PowerShell 5.1+ and PowerShell 7). Picks Node.js, PHP or Python 3.
+﻿# solo-keel dashboard launcher (Windows PowerShell 5.1+ and PowerShell 7). Picks Node.js, PHP or Python 3.
 # Usage: .\serve.cmd                                   interactive menu
 #        .\serve.cmd -Runtime php -Port 4800 -NoOpen
 param(
@@ -42,7 +42,7 @@ if (-not $installed) {
   exit 1
 }
 
-$keelHome = if ($env:KEEL_HOME) { $env:KEEL_HOME } else { Join-Path $HOME ".keel" }
+$keelHome = if ($env:SOLO_KEEL_HOME) { $env:SOLO_KEEL_HOME } else { Join-Path $HOME ".solo-keel" }
 $count = 0
 $registry = Join-Path $keelHome "projects.json"
 if (Test-Path $registry) { try { $count = @((Get-Content $registry -Raw | ConvertFrom-Json).projects).Count } catch { } }
@@ -52,7 +52,7 @@ if (-not $Runtime) {
   if ($Yes) { $Runtime = $installed[0].Key }
   else {
     Write-Host ""
-    Write-Host "  keel" -NoNewline -ForegroundColor White; Write-Host " · project dashboard"
+    Write-Host "  solo-keel" -NoNewline -ForegroundColor White; Write-Host " · project dashboard"
     Write-Host "  ──────────────────────────────" -ForegroundColor DarkGray
     Write-Host "  Projects registered: $count  ($keelHome)" -ForegroundColor DarkGray
     Write-Host ""
@@ -111,13 +111,13 @@ if (-not $NoOpen -and -not $Open -and -not $Yes) {
 }
 
 $url = "http://localhost:$Port/"
-$env:KEEL_PORT = "$Port"
+$env:SOLO_KEEL_PORT = "$Port"
 if ($openBrowser) {
   Start-Job -ScriptBlock { param($u) Start-Sleep -Seconds 1; Start-Process $u } -ArgumentList $url | Out-Null
 }
 Write-Host ""
 switch ($Runtime) {
   "node"   { & node "server/node/server.mjs" --port $Port }
-  "php"    { Write-Host "keel dashboard (PHP $($chosen.Version)) → $url   Stop with Ctrl+C."; & php -S "127.0.0.1:$Port" "server/php/router.php" }
+  "php"    { Write-Host "solo-keel dashboard (PHP $($chosen.Version)) → $url   Stop with Ctrl+C."; & php -S "127.0.0.1:$Port" "server/php/router.php" }
   "python" { & $pythonCmd "server/python/server.py" --port $Port }
 }

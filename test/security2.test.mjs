@@ -14,10 +14,10 @@ import { listText } from "../lib/report.mjs";
 
 const repo = fileURLToPath(new URL("..", import.meta.url));
 let tmp;
-before(() => { tmp = fs.mkdtempSync(path.join(os.tmpdir(), "keel-sec2-")); process.env.KEEL_HOME = path.join(tmp, "home"); });
+before(() => { tmp = fs.mkdtempSync(path.join(os.tmpdir(), "solo-keel-sec2-")); process.env.SOLO_KEEL_HOME = path.join(tmp, "home"); });
 
 const canSymlink = (() => {
-  const probe = path.join(os.tmpdir(), `keel-link2-${process.pid}`);
+  const probe = path.join(os.tmpdir(), `solo-keel-link2-${process.pid}`);
   try { fs.symlinkSync(path.join(os.tmpdir(), "nowhere"), probe, "file"); fs.unlinkSync(probe); return true; } catch { return false; }
 })();
 
@@ -65,14 +65,14 @@ test("the page carries its own CSP for file mode", () => {
   assert.match(fs.readFileSync(path.join(repo, "web/index.html"), "utf8"), /http-equiv="Content-Security-Policy" content="default-src 'self'/);
 });
 
-// ---- H-B: keel init never writes through a symlink.
+// ---- H-B: solo-keel init never writes through a symlink.
 test("init refuses a dangling symlink where it would write", { skip: canSymlink ? false : "symlinks need extra rights here" }, () => {
   const dir = path.join(tmp, "init-link");
   fs.mkdirSync(path.join(dir, "docs", "progress"), { recursive: true });
   spawnSync("git", ["init", "-q", dir]);
   const target = path.join(tmp, "outside-target.txt");
   fs.symlinkSync(target, path.join(dir, "docs", "progress", "milestones.json"), "file");
-  const r = spawnSync(process.execPath, [path.join(repo, "cli/keel.mjs"), "init", "--no-register"], { cwd: dir, encoding: "utf8" });
+  const r = spawnSync(process.execPath, [path.join(repo, "cli/solo-keel.mjs"), "init", "--no-register"], { cwd: dir, encoding: "utf8" });
   assert.equal(r.status, 1);
   assert.match(r.stderr, /symbolic link/);
   assert.equal(fs.existsSync(target), false);
@@ -98,12 +98,12 @@ test("a second patch in one command cannot write a protected file", () => {
 });
 
 // ---- M-C: a nested repo's config cannot switch off the outer project's checks.
-test("a nested .keel.json does not disable the session project's guard", () => {
+test("a nested .solo-keel.json does not disable the session project's guard", () => {
   const outer = path.join(tmp, "outer");
   const inner = path.join(outer, "vendor", "lib");
   fs.mkdirSync(path.join(outer, ".git"), { recursive: true });
   fs.mkdirSync(path.join(inner, ".git"), { recursive: true });
-  fs.writeFileSync(path.join(inner, ".keel.json"), JSON.stringify({ protect: [], aiFootprint: { check: false } }));
+  fs.writeFileSync(path.join(inner, ".solo-keel.json"), JSON.stringify({ protect: [], aiFootprint: { check: false } }));
   // The agent works in the nested repo but writes the outer project's .env.
   assert.equal(hook("pre-edit.mjs", inner, "Write", { file_path: path.join(outer, ".env"), content: "S=1" }).status, 2);
   // And a file inside the outer project is still checked for AI mentions.

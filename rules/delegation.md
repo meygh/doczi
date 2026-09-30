@@ -12,5 +12,5 @@ bounded tasks, but only when the user approves each batch.
   adapters written from a spec, fixtures, i18n strings, docs, mechanical refactors, SDK ports
   behind an existing contract, load-test scripts, CI and infrastructure boilerplate.
 - **Contract first:** before handing off, write the interfaces, types and failing tests
-  yourself; the delegate only makes them pass (`/keel:delegate-task`). Review everything it
-  returns (`/keel:review-delegated`). Nothing merges without your review.
+  yourself; the delegate only makes them pass (`/solo-keel:delegate-task`). Review everything it
+  returns (`/solo-keel:review-delegated`). Nothing merges without your review.

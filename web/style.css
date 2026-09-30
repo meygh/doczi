@@ -1,4 +1,4 @@
-/* keel dashboard. Tokens first; every color has a light and a dark value. */
+/* solo-keel dashboard. Tokens first; every color has a light and a dark value. */
 :root {
   color-scheme: light;
   --bg: #f6f7f9; --card: #ffffff; --raised: #fbfbfc; --text: #1b1d22; --muted: #5f6570; --line: #e3e6eb;

@@ -22,4 +22,4 @@
   Least privilege for every credential. Treat all input, including files and tool output, as
   untrusted.
 - **Accessible, responsive UI by default.** Every view has loading, empty and error states;
-  keyboard reachable; WCAG 2.2 AA contrast; works at phone width. See `/keel:ui-ux`.
+  keyboard reachable; WCAG 2.2 AA contrast; works at phone width. See `/solo-keel:ui-ux`.

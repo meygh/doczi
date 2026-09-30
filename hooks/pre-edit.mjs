@@ -24,6 +24,6 @@ guarded(() => {
   const ctx = project(input);
   const problems = checkChanges(changes(input), ctx);
   if (problems.length) {
-    block(["keel blocked this edit:", ...problems.map((p) => `- ${p}`), ...(problems.some((p) => p.includes(" line ")) ? [AI_RULE] : [])]);
+    block(["solo-keel blocked this edit:", ...problems.map((p) => `- ${p}`), ...(problems.some((p) => p.includes(" line ")) ? [AI_RULE] : [])]);
   }
 });

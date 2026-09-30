@@ -6,7 +6,7 @@ argument-hint: "[task, milestone step or feature description]"
 
 Plan: $ARGUMENTS
 
-1. Find the task in the project's requirements and progress file (`.keel.json` → `progress`,
+1. Find the task in the project's requirements and progress file (`.solo-keel.json` → `progress`,
    usually `docs/progress/milestones.json`): milestone, requirement IDs, exit criterion. If it
    is not there, say so.
 2. Read the code that will change. Do not guess; list what you read.
@@ -17,7 +17,7 @@ Plan: $ARGUMENTS
    - test plan: unit, integration, end-to-end, benchmarks, security tests;
    - steps: ordered, one commit each, each with its verification command, each tagged
      `[lead]` or `[delegable]` (see the delegation rule);
-   - risks, open questions, and whether an ADR is needed (`/keel:adr`);
+   - risks, open questions, and whether an ADR is needed (`/solo-keel:adr`);
    - new progress steps to add, if the tracker does not have them yet.
 4. Stop and ask for approval of the plan and of the delegation split (list each
    `[delegable]` step with a one-line reason). Write no code in this skill.

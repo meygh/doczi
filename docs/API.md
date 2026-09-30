@@ -1,17 +1,17 @@
-# keel API
+# solo-keel API
 
-keel talks to projects in three ways. All of them read and write the same file in each
-project (`.keel.json` → `progress`, default `docs/progress/milestones.json`); keel keeps no
+solo-keel talks to projects in three ways. All of them read and write the same file in each
+project (`.solo-keel.json` → `progress`, default `docs/progress/milestones.json`); solo-keel keeps no
 database of its own.
 
 | For | Interface | Start |
 | --- | --- | --- |
-| Agents (Claude Code, Codex) | MCP over stdio | Installed with the plugin (`.mcp.json`) or `keel mcp` |
-| People | HTTP dashboard + REST | `./serve` menu, or `keel serve` |
-| Scripts, CI | CLI | `keel progress …` |
+| Agents (Claude Code, Codex) | MCP over stdio | Installed with the plugin (`.mcp.json`) or `solo-keel mcp` |
+| People | HTTP dashboard + REST | `./serve` menu, or `solo-keel serve` |
+| Scripts, CI | CLI | `solo-keel progress …` |
 
-Projects are registered in `$KEEL_HOME/projects.json` (default `~/.keel/projects.json`) by
-`keel init` or `keel projects add <path>`.
+Projects are registered in `$SOLO_KEEL_HOME/projects.json` (default `~/.solo-keel/projects.json`) by
+`solo-keel init` or `solo-keel projects add <path>`.
 
 ## The progress file
 

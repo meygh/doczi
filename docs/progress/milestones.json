@@ -1,6 +1,6 @@
 {
-  "title": "keel: where we are",
-  "subtitle": "Milestones for keel itself, tracked with keel.",
+  "title": "solo-keel: where we are",
+  "subtitle": "Milestones for solo-keel itself, tracked with solo-keel.",
   "updated": "2026-09-30",
   "milestones": [
     {
@@ -8,7 +8,7 @@
       "name": "First release",
       "when": "September 2026",
       "weight": 3,
-      "exit": "A project can install keel in Claude Code or Codex, get the rules and skills, and track progress through MCP, CLI and the dashboard on Node.js, PHP or Python.",
+      "exit": "A project can install solo-keel in Claude Code or Codex, get the rules and skills, and track progress through MCP, CLI and the dashboard on Node.js, PHP or Python.",
       "tasks": [
         {
           "name": "Core library",
@@ -69,7 +69,7 @@
           ],
           "questions": [
             {
-              "q": "Should keel also be published to npm, or is installing from GitHub enough?"
+              "q": "Should solo-keel also be published to npm, or is installing from GitHub enough?"
             }
           ]
         },

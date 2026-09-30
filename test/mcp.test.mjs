@@ -19,14 +19,14 @@ function call(method, params) {
 const tool = async (name, args = {}) => (await call("tools/call", { name, arguments: args })).result;
 
 before(() => {
-  project = fs.mkdtempSync(path.join(os.tmpdir(), "keel-mcp-"));
+  project = fs.mkdtempSync(path.join(os.tmpdir(), "solo-keel-mcp-"));
   fs.mkdirSync(path.join(project, ".git"));
   fs.mkdirSync(path.join(project, "docs", "progress"), { recursive: true });
   fs.writeFileSync(path.join(project, "docs/progress/milestones.json"), JSON.stringify({
     title: "Demo",
     milestones: [{ id: "M0", name: "Start", tasks: [{ name: "Setup", steps: [{ status: "todo", title: "Repo" }, { status: "todo", title: "CI" }] }] }],
   }));
-  proc = spawn(process.execPath, [server], { cwd: project, env: { ...process.env, KEEL_HOME: path.join(project, ".home") } });
+  proc = spawn(process.execPath, [server], { cwd: project, env: { ...process.env, SOLO_KEEL_HOME: path.join(project, ".home") } });
   lines = readline.createInterface({ input: proc.stdout });
   lines.on("line", (l) => { const m = JSON.parse(l); pending.get(m.id)?.(m); pending.delete(m.id); });
 });
@@ -36,7 +36,7 @@ test("initialize answers with server info and tool capability, echoing the proto
   const r = await call("initialize", { protocolVersion: "2025-06-18", capabilities: {}, clientInfo: { name: "t", version: "1" } });
   assert.equal(r.result.protocolVersion, "2025-06-18");
   assert.ok(r.result.capabilities.tools);
-  assert.equal(r.result.serverInfo.name, "keel");
+  assert.equal(r.result.serverInfo.name, "solo-keel");
   proc.stdin.write(JSON.stringify({ jsonrpc: "2.0", method: "notifications/initialized" }) + "\n");
 });
 

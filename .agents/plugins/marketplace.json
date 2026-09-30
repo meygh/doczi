@@ -1,12 +1,12 @@
 {
-  "name": "keel",
+  "name": "solo-keel",
   "interface": {
-    "displayName": "keel"
+    "displayName": "solo-keel"
   },
   "plugins": [
     {
-      "name": "keel",
-      "source": { "source": "url", "url": "https://github.com/meygh/keel.git", "ref": "main" },
+      "name": "solo-keel",
+      "source": { "source": "url", "url": "https://github.com/meygh/solo-keel.git", "ref": "main" },
       "policy": { "installation": "AVAILABLE", "authentication": "ON_INSTALL" },
       "category": "Productivity"
     },

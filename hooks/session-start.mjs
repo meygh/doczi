@@ -1,5 +1,5 @@
 #!/usr/bin/env node
-// SessionStart: give the agent the enabled keel rules and a one-line progress status.
+// SessionStart: give the agent the enabled solo-keel rules and a one-line progress status.
 import fs from "node:fs";
 import path from "node:path";
 import { guarded, pluginRoot, project, readInput } from "./lib.mjs";
@@ -14,7 +14,7 @@ guarded(() => {
   const parts = [];
 
   if (error) {
-    parts.push(`keel: ${error} keel rules are off for this session until it is fixed.`);
+    parts.push(`solo-keel: ${error} solo-keel rules are off for this session until it is fixed.`);
   } else {
     for (const name of config.rules.filter((r) => RULE_MODULES.includes(r))) {
       parts.push(fs.readFileSync(path.join(pluginRoot, "rules", `${name}.md`), "utf8").trim());
@@ -23,7 +23,7 @@ guarded(() => {
       const s = summarize(readProgress(openProject(root)));
       const now = s.current ? `now on ${JSON.stringify(clean(s.current.id, 20) + " " + clean(s.current.name, 80))} (${s.current.percent}%)` : "all milestones complete";
       parts.push(`${DATA_LABEL} ${s.percent}% overall; ${now}; file ${JSON.stringify(clean(config.progress, 120))}. ` +
-        `When calling keel MCP tools, pass project: ${JSON.stringify(root)}.`);
+        `When calling solo-keel MCP tools, pass project: ${JSON.stringify(root)}.`);
     } catch { /* no progress file: nothing to say */ }
   }
 

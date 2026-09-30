@@ -1,4 +1,4 @@
-# keel
+# solo-keel
 
 The part of every project that keeps it steady: **how the work is done** (rules, workflow
 skills, reviewer agents, hooks) and **where the work stands** (milestones → tasks → steps,
@@ -10,13 +10,13 @@ and Codex, and never overrides a project's own setup.
 | | |
 | --- | --- |
 | **Rules** (always on, per project switchable) | Read before you claim · plan, then build · test first · smallest correct diff · look up current APIs · say what you did not verify · clean code · no AI footprint · lead/secondary agent delegation |
-| **Skills** | `/keel:plan-feature` · `/keel:implement-task` · `/keel:delegate-task` · `/keel:review-delegated` · `/keel:adr` · `/keel:commit` · `/keel:clean-code` · `/keel:ui-ux` · `/keel:progress` · `/keel:setup` |
+| **Skills** | `/solo-keel:plan-feature` · `/solo-keel:implement-task` · `/solo-keel:delegate-task` · `/solo-keel:review-delegated` · `/solo-keel:adr` · `/solo-keel:commit` · `/solo-keel:clean-code` · `/solo-keel:ui-ux` · `/solo-keel:progress` · `/solo-keel:setup` |
 | **Reviewer agents** | `security-reviewer` · `test-writer` · `ux-reviewer` · `perf-reviewer` |
 | **Hooks** | Rules and a progress line at session start · blocks edits to protected files (secrets, generated code) · blocks AI tool names and attribution in code, commits and PRs |
 | **Progress API** | MCP tools for agents · REST + dashboard for people (Node.js, PHP or Python) · CLI for scripts |
 | **Upstream skills** (optional, pinned) | [ui-ux-pro-max](https://github.com/nextlevelbuilder/ui-ux-pro-max-skill) (MIT) · [engineering](https://github.com/anthropics/knowledge-work-plugins/tree/main/engineering) (Apache-2.0) |
 
-Plugin skills are namespaced (`/keel:…`), so a project's own `plan-feature` or `ui-ux` keeps
+Plugin skills are namespaced (`/solo-keel:…`), so a project's own `plan-feature` or `ui-ux` keeps
 working unchanged. Rules come from a session-start hook and can be switched off per project.
 
 ## Install
@@ -26,10 +26,10 @@ Needs Node.js 20 or newer.
 ### Claude Code
 
 ```text
-/plugin marketplace add meygh/keel
-/plugin install keel@keel
-/plugin install ui-ux-pro-max@keel      # optional
-/plugin install engineering@keel        # optional
+/plugin marketplace add meygh/solo-keel
+/plugin install solo-keel@solo-keel
+/plugin install ui-ux-pro-max@solo-keel      # optional
+/plugin install engineering@solo-keel        # optional
 ```
 
 The MCP server comes with the plugin.
@@ -37,50 +37,50 @@ The MCP server comes with the plugin.
 ### Codex
 
 ```bash
-codex plugin marketplace add meygh/keel
-codex plugin add keel@keel
-codex plugin add ui-ux-pro-max@keel     # optional
-codex plugin add engineering@keel       # optional
+codex plugin marketplace add meygh/solo-keel
+codex plugin add solo-keel@solo-keel
+codex plugin add ui-ux-pro-max@solo-keel     # optional
+codex plugin add engineering@solo-keel       # optional
 ```
 
 Codex asks you to trust the plugin's hooks once. Codex does not expand plugin paths in MCP
-settings, so add the MCP server with the path to your keel copy:
+settings, so add the MCP server with the path to your solo-keel copy:
 
 ```bash
-codex mcp add keel -- node /path/to/keel/mcp/server.mjs
+codex mcp add solo-keel -- node /path/to/solo-keel/mcp/server.mjs
 ```
 
-### The `keel` command (dashboard, CLI, git hook)
+### The `solo-keel` command (dashboard, CLI, git hook)
 
 ```bash
-npm install -g github:meygh/keel
+npm install -g github:meygh/solo-keel
 ```
 
-Or clone this repository and run `node cli/keel.mjs …` from it.
+Or clone this repository and run `node cli/solo-keel.mjs …` from it.
 
 ## Use it in a project
 
 ```bash
 cd your-project
-keel init --check "make check"
+solo-keel init --check "make check"
 ```
 
-`init` writes `.keel.json`, a starter `docs/progress/milestones.json` and registers the
+`init` writes `.solo-keel.json`, a starter `docs/progress/milestones.json` and registers the
 project with the dashboard. It never overwrites existing files. In an agent session,
-`/keel:setup` walks through the same with you and drafts milestones from your roadmap.
+`/solo-keel:setup` walks through the same with you and drafts milestones from your roadmap.
 
 Then:
 
 ```bash
-keel progress                                   # where we stand
-keel progress --milestone M0                    # every step, numbered
-keel progress set M0 "Repository" 2 doing       # task and step by name, part of a name, or number
-keel progress set M0 "Repository" 3 blocked --reason "Waiting for runner quota"
-keel progress add M1 "Main flow" "Search page"
-keel progress ask M1 "Main flow" "Guest checkout in v1?"
-keel progress answer M1 "Main flow" 1 "Yes"
-keel git-hooks                                  # commit-msg hook: strips assistant attribution
-keel check-ai                                   # scan tracked files for AI tool mentions
+solo-keel progress                                   # where we stand
+solo-keel progress --milestone M0                    # every step, numbered
+solo-keel progress set M0 "Repository" 2 doing       # task and step by name, part of a name, or number
+solo-keel progress set M0 "Repository" 3 blocked --reason "Waiting for runner quota"
+solo-keel progress add M1 "Main flow" "Search page"
+solo-keel progress ask M1 "Main flow" "Guest checkout in v1?"
+solo-keel progress answer M1 "Main flow" 1 "Yes"
+solo-keel git-hooks                                  # commit-msg hook: strips assistant attribution
+solo-keel check-ai                                   # scan tracked files for AI tool mentions
 ```
 
 Agents do the same through MCP (`progress_summary`, `progress_set_status`,
@@ -92,16 +92,16 @@ reason), and leave questions for you on the task instead of guessing.
 ```bash
 ./serve          # macOS, Linux, Git Bash
 serve.cmd        # Windows
-keel serve       # anywhere keel is installed
+solo-keel serve       # anywhere solo-keel is installed
 ```
 
 A short menu shows which of **Node.js**, **PHP** and **Python 3** are installed, suggests a
 free port and opens the browser:
 
 ```text
-  keel · project dashboard
+  solo-keel · project dashboard
   ──────────────────────────────
-  Projects registered: 3  (/home/sam/.keel)
+  Projects registered: 3  (/home/sam/.solo-keel)
 
   Serve it with:
     1) Node.js   v24.0.2
@@ -133,10 +133,10 @@ What the dashboard gives you:
 
 Every change is saved straight to the project's progress file.
 
-`keel init --page` also copies the page next to a project's progress file, for a standalone
-view that works without keel.
+`solo-keel init --page` also copies the page next to a project's progress file, for a standalone
+view that works without solo-keel.
 
-## `.keel.json`
+## `.solo-keel.json`
 
 ```json
 {
@@ -189,8 +189,8 @@ milestone statuses are derived from their steps. Details: [docs/API.md](docs/API
 
 ## Fork or connect
 
-- **Connect (recommended):** install the plugin, run `keel init` per project. Projects keep
-  only `.keel.json` and their progress file; updates arrive with the plugin.
+- **Connect (recommended):** install the plugin, run `solo-keel init` per project. Projects keep
+  only `.solo-keel.json` and their progress file; updates arrive with the plugin.
 - **Fork:** fork this repository, change rules and skills to taste, and point the
   marketplace commands at your fork.
 

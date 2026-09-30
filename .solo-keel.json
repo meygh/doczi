@@ -1,5 +1,5 @@
 {
-  "name": "keel",
+  "name": "solo-keel",
   "check": "npm run check",
   "progress": "docs/progress/milestones.json",
   "rules": ["core", "clean-code", "no-ai-footprint"],
@@ -16,7 +16,7 @@
       "templates/git-hooks/",
       "test/",
       "skills/",
-      "cli/keel.mjs",
+      "cli/solo-keel.mjs",
       "package.json"
     ],
     "terms": []

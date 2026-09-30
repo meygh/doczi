@@ -10,9 +10,9 @@ robot-emoji signatures) in:
 
 Exceptions: files whose job is to configure those tools (`CLAUDE.md`, `AGENTS.md`,
 `.claude/`, `.codex/`, `.agents/`, plugin manifests, `.mcp.json`) and any paths the project lists
-in `.keel.json` → `aiFootprint.allow` (for example a provider adapter that must call a vendor
+in `.solo-keel.json` → `aiFootprint.allow` (for example a provider adapter that must call a vendor
 API).
 
-keel's hooks block edits and commit commands that break this, and `keel git-hooks` installs a
+solo-keel's hooks block edits and commit commands that break this, and `solo-keel git-hooks` installs a
 `commit-msg` hook that strips attribution trailers. If a hook blocks you, rewrite the text
 neutrally; do not work around the hook.

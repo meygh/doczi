@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""keel dashboard + REST API on Python 3 (standard library only).
+"""solo-keel dashboard + REST API on Python 3 (standard library only).
 
 Contract: docs/API.md (same as the Node.js and PHP servers).
 Usage: python3 server/python/server.py [--port 4800]
@@ -44,13 +44,13 @@ class HttpError(Exception):
         self.status = status
 
 
-def keel_home():
-    return Path(os.environ.get("KEEL_HOME") or Path.home() / ".keel")
+def solo_keel_home():
+    return Path(os.environ.get("SOLO_KEEL_HOME") or Path.home() / ".solo-keel")
 
 
 def projects():
     try:
-        data = json.loads((keel_home() / "projects.json").read_text(encoding="utf-8"))
+        data = json.loads((solo_keel_home() / "projects.json").read_text(encoding="utf-8"))
         return data.get("projects", []) if isinstance(data, dict) else []
     except (OSError, ValueError):
         return []
@@ -86,7 +86,7 @@ def progress_path(project):
     root = os.path.abspath(project["path"])
     rel = "docs/progress/milestones.json"
     try:
-        config = json.loads(Path(root, ".keel.json").read_text(encoding="utf-8-sig"))
+        config = json.loads(Path(root, ".solo-keel.json").read_text(encoding="utf-8-sig"))
         if isinstance(config, dict) and isinstance(config.get("progress"), str):
             rel = config["progress"]
     except (OSError, ValueError):
@@ -177,7 +177,7 @@ def today():
 
 
 class Handler(BaseHTTPRequestHandler):
-    server_version = "keel"
+    server_version = "solo-keel"
     sys_version = ""
     timeout = 15
 
@@ -368,11 +368,11 @@ def main():
     for stream in (sys.stdout, sys.stderr):  # Windows consoles default to a legacy code page
         if hasattr(stream, "reconfigure"):
             stream.reconfigure(encoding="utf-8", errors="replace")
-    parser = argparse.ArgumentParser(description="keel dashboard and API")
-    parser.add_argument("--port", type=int, default=int(os.environ.get("KEEL_PORT", "4800")))
+    parser = argparse.ArgumentParser(description="solo-keel dashboard and API")
+    parser.add_argument("--port", type=int, default=int(os.environ.get("SOLO_KEEL_PORT", "4800")))
     args = parser.parse_args()
     server = ThreadingHTTPServer(("127.0.0.1", args.port), Handler)
-    print(f"keel dashboard (Python {sys.version.split()[0]}) → http://localhost:{args.port}/   Stop with Ctrl+C.", flush=True)
+    print(f"solo-keel dashboard (Python {sys.version.split()[0]}) → http://localhost:{args.port}/   Stop with Ctrl+C.", flush=True)
     try:
         server.serve_forever()
     except KeyboardInterrupt:

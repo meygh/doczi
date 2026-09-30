@@ -52,11 +52,11 @@ function request(port, method, url, { body, headers = {} } = {}) {
 }
 
 function makeFixture() {
-  const home = fs.mkdtempSync(path.join(os.tmpdir(), "keel-http-"));
+  const home = fs.mkdtempSync(path.join(os.tmpdir(), "solo-keel-http-"));
   const mk = (name, config, progress) => {
     const dir = path.join(home, name);
     fs.mkdirSync(path.join(dir, "docs", "progress"), { recursive: true });
-    if (config) fs.writeFileSync(path.join(dir, ".keel.json"), JSON.stringify(config));
+    if (config) fs.writeFileSync(path.join(dir, ".solo-keel.json"), JSON.stringify(config));
     if (progress) fs.writeFileSync(path.join(dir, "docs/progress/milestones.json"), JSON.stringify(progress, null, 2));
     return dir;
   };
@@ -98,7 +98,7 @@ for (const rt of RUNTIMES) {
       fx = makeFixture();
       port = await freePort();
       const [cmd, args] = rt.cmd(port);
-      proc = spawn(cmd, args, { env: { ...process.env, KEEL_HOME: fx.home, KEEL_PORT: String(port) }, stdio: ["ignore", "ignore", "pipe"] });
+      proc = spawn(cmd, args, { env: { ...process.env, SOLO_KEEL_HOME: fx.home, SOLO_KEEL_PORT: String(port) }, stdio: ["ignore", "ignore", "pipe"] });
       let stderr = "";
       proc.stderr.on("data", (d) => (stderr += d));
       for (let i = 0; i < 100; i++) {
@@ -189,7 +189,7 @@ for (const rt of RUNTIMES) {
       assert.equal((await doc("docs/SRS.md#goals")).status, 200);
       assert.equal((await doc("docs/plan.txt")).json.text, "Plan text");
       assert.equal((await doc("docs/big.md")).status, 413);
-      for (const p of ["docs/secret.md", "../demo/docs/SRS.md", "docs/../docs/SRS.md", "C:/Windows/win.ini", "/etc/passwd", ".keel.json", "", "docs/SRS.md:hidden.md", "docs/SRS.md::$DATA"]) {
+      for (const p of ["docs/secret.md", "../demo/docs/SRS.md", "docs/../docs/SRS.md", "C:/Windows/win.ini", "/etc/passwd", ".solo-keel.json", "", "docs/SRS.md:hidden.md", "docs/SRS.md::$DATA"]) {
         assert.equal((await doc(p)).status, 404, p);
       }
     });

@@ -25,4 +25,4 @@ Delegate: $ARGUMENTS
    - report: write `.handoff/<id>.result.md` (what changed, commands run, open questions).
 4. Tell the user the worktree path and the one line to give the secondary agent:
    "Read .handoff/<id>.md in this repo and complete it."
-5. Do not change the same files until `/keel:review-delegated <id>` is done.
+5. Do not change the same files until `/solo-keel:review-delegated <id>` is done.

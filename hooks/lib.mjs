@@ -1,4 +1,4 @@
-// Shared helpers for keel's hooks. The same scripts run under Claude Code and Codex:
+// Shared helpers for solo-keel's hooks. The same scripts run under Claude Code and Codex:
 // both send JSON on stdin, both treat exit code 2 + stderr as "blocked, tell the agent why".
 import fs from "node:fs";
 import path from "node:path";
@@ -24,11 +24,11 @@ export function block(lines) {
   process.exit(2);
 }
 
-// Run a hook body; a bug in keel must never break the user's session.
+// Run a hook body; a bug in solo-keel must never break the user's session.
 export function guarded(fn) {
   try { fn(); }
   catch (err) {
-    if (process.env.KEEL_DEBUG) process.stderr.write(`keel hook error: ${err.stack}\n`);
+    if (process.env.SOLO_KEEL_DEBUG) process.stderr.write(`solo-keel hook error: ${err.stack}\n`);
     process.exit(0);
   }
 }

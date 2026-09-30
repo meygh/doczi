@@ -1,4 +1,4 @@
-// Safe Markdown subset for the keel dashboard: headings, paragraphs, lists (nested, task
+// Safe Markdown subset for the solo-keel dashboard: headings, paragraphs, lists (nested, task
 // boxes), tables, code, quotes, rules, emphasis and links. Everything is escaped; generated
 // HTML is never scanned again (links and code are built behind placeholders), and only
 // http(s), mailto, in-page anchors and documents the progress file links become links.

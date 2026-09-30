@@ -1,6 +1,6 @@
 {
   "mcpServers": {
-    "keel": {
+    "solo-keel": {
       "command": "node",
       "args": ["${CLAUDE_PLUGIN_ROOT}/mcp/server.mjs"]
     }

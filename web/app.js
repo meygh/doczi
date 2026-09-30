@@ -1,6 +1,6 @@
-// keel dashboard: milestone → task → step checklists with progress computed from step statuses.
+// solo-keel dashboard: milestone → task → step checklists with progress computed from step statuses.
 // Two modes:
-//   API mode  — served by keel (Node.js, PHP or Python): pick a project; changes save to its file.
+//   API mode  — served by solo-keel (Node.js, PHP or Python): pick a project; changes save to its file.
 //   File mode — a standalone copy next to milestones.json; changes stay in this browser until
 //               downloaded back into the file.
 (() => {
@@ -81,18 +81,18 @@
     try {
       const health = await api("api/health");
       if (health?.ok) return startApi();
-    } catch { /* not served by keel */ }
+    } catch { /* not served by solo-keel */ }
     startFile();
   }
 
   async function startApi() {
     mode = "api";
     $("download").hidden = $("copy").hidden = $("discard").hidden = true;
-    $("how-to-update").textContent = "Changes you make here save to the project's progress file straight away. Agents update the same file through keel's tools.";
+    $("how-to-update").textContent = "Changes you make here save to the project's progress file straight away. Agents update the same file through solo-keel's tools.";
     let projects;
     try { projects = (await api("api/projects")).projects; }
-    catch (err) { retry = startApi; return fail("Couldn't reach the keel server", `${err.message}. Check that it is still running, then try again.`, false); }
-    if (!projects.length) { retry = startApi; return fail("No projects yet", 'Run "keel init" inside a project to register it, then try again.', false); }
+    catch (err) { retry = startApi; return fail("Couldn't reach the solo-keel server", `${err.message}. Check that it is still running, then try again.`, false); }
+    if (!projects.length) { retry = startApi; return fail("No projects yet", 'Run "solo-keel init" inside a project to register it, then try again.', false); }
     const params = new URLSearchParams(location.search);
     const wanted = params.get("project") || storage.get("progress-project", null);
     const first = projects.find((p) => p.id === wanted && p.hasProgress) || projects.find((p) => p.hasProgress) || projects[0];
@@ -115,8 +115,8 @@
     catch (err) {
       retry = () => loadProject(id);
       const name = $("project").selectedOptions[0]?.text || id;
-      if (err.status === 404) fail(`${name} has no progress file yet`, 'Run "keel init" in the project to create one, then try again.', false);
-      else fail(`Couldn't load ${name}`, `The keel server didn't answer (${err.message}). Check that it is still running, then try again.`, false);
+      if (err.status === 404) fail(`${name} has no progress file yet`, 'Run "solo-keel init" in the project to create one, then try again.', false);
+      else fail(`Couldn't load ${name}`, `The solo-keel server didn't answer (${err.message}). Check that it is still running, then try again.`, false);
     } finally { $("app").removeAttribute("aria-busy"); }
   }
 
@@ -803,7 +803,7 @@
   hide.onchange = () => { applyHide(); if (data) render(); };
   applyHide();
 
-  // File mode: the file with this browser's changes applied, one step per line like keel writes it.
+  // File mode: the file with this browser's changes applied, one step per line like solo-keel writes it.
   function exportJson() {
     const out = JSON.parse(JSON.stringify(data));
     out.updated = new Date().toISOString().slice(0, 10);

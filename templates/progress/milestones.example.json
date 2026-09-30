@@ -1,5 +1,5 @@
 {
-  "$schema": "https://raw.githubusercontent.com/meygh/keel/main/templates/progress/progress.schema.json",
+  "$schema": "https://raw.githubusercontent.com/meygh/solo-keel/main/templates/progress/progress.schema.json",
   "title": "Where we are",
   "subtitle": "Milestones, their tasks, and the steps we split each task into.",
   "updated": "",

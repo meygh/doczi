@@ -7,7 +7,7 @@ description: UI/UX standards for any frontend work — states, design tokens, ac
 
 Project-specific design rules (its own `ui-ux` skill, design system, brand profile) win over
 these. For deep style, palette, typography and chart guidance, the `ui-ux-pro-max` plugin from
-the keel marketplace is the reference.
+the solo-keel marketplace is the reference.
 
 ## Principles
 - **Direct manipulation first, forms second.** Edit in place where people look; panels are for
