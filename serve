@@ -1,0 +1,131 @@
+#!/usr/bin/env bash
+# keel dashboard launcher (macOS, Linux, Git Bash). Picks Node.js, PHP or Python 3.
+# Usage: ./serve                              interactive menu
+#        ./serve --runtime php --port 4800 --no-open
+set -uo pipefail
+cd "$(dirname "$0")" || exit 1
+
+runtime="" port="" open="ask" yes=0
+while [ $# -gt 0 ]; do
+  case "$1" in
+    -r|--runtime) runtime="${2:-}"; shift 2 ;;
+    -p|--port) port="${2:-}"; shift 2 ;;
+    --no-open) open="no"; shift ;;
+    --open) open="yes"; shift ;;
+    -y|--yes) yes=1; shift ;;
+    -h|--help) sed -n '2,4p' "$0" | sed 's/^# \{0,1\}//'; echo "Options: --runtime node|php|python  --port N  --open|--no-open  --yes"; exit 0 ;;
+    *) echo "Unknown option: $1 (try --help)"; exit 2 ;;
+  esac
+done
+
+if [ -t 1 ]; then b=$'\e[1m' d=$'\e[2m' g=$'\e[32m' y=$'\e[33m' r=$'\e[0m'; else b="" d="" g="" y="" r=""; fi
+
+# Detect runtimes: name, label, version, command.
+node_v=$(node --version 2>/dev/null)
+php_v=$(php -r 'echo PHP_VERSION;' 2>/dev/null)
+py_cmd=""
+for c in python3 python; do
+  v=$("$c" --version 2>&1) && case "$v" in "Python 3"*) py_cmd=$c; py_v=${v#Python }; break ;; esac
+done
+py_v=${py_v:-}
+
+names=(node php python)
+labels=("Node.js" "PHP" "Python 3")
+versions=("$node_v" "$php_v" "$py_v")
+
+home="${KEEL_HOME:-$HOME/.keel}"
+count=0
+[ -f "$home/projects.json" ] && count=$(grep -c '"id"' "$home/projects.json" 2>/dev/null || echo 0)
+
+port_busy() { (exec 3<>"/dev/tcp/127.0.0.1/$1") 2>/dev/null; }
+
+if [ -z "$runtime" ] && [ $yes -eq 0 ]; then
+  echo
+  echo "  ${b}keel${r} · project dashboard"
+  echo "  ${d}──────────────────────────────${r}"
+  echo "  ${d}Projects registered: $count  ($home)${r}"
+  echo
+  echo "  Serve it with:"
+fi
+
+default=""
+for i in 0 1 2; do
+  if [ -n "${versions[$i]}" ]; then
+    [ -z "$default" ] && default=$((i + 1))
+    [ -z "$runtime" ] && [ $yes -eq 0 ] && printf "    ${b}%d)${r} %-9s ${g}%s${r}\n" $((i + 1)) "${labels[$i]}" "${versions[$i]}"
+  else
+    [ -z "$runtime" ] && [ $yes -eq 0 ] && printf "    ${d}%d) %-9s not installed${r}\n" $((i + 1)) "${labels[$i]}"
+  fi
+done
+
+if [ -z "$default" ]; then
+  echo "  ${y}None of Node.js, PHP or Python 3 is installed. Install one of them and run this again.${r}"
+  exit 1
+fi
+
+if [ -z "$runtime" ]; then
+  if [ $yes -eq 1 ]; then choice=$default
+  else
+    echo "    ${b}q)${r} Quit"
+    echo
+    while :; do
+      read -r -p "  Choose [$default]: " choice
+      choice=${choice:-$default}
+      case "$choice" in
+        q|Q) echo "  Bye."; exit 0 ;;
+        1|2|3) [ -n "${versions[$((choice - 1))]}" ] && break; echo "  ${y}${labels[$((choice - 1))]} is not installed; pick another.${r}" ;;
+        *) echo "  ${y}Type 1, 2, 3 or q.${r}" ;;
+      esac
+    done
+  fi
+  runtime=${names[$((choice - 1))]}
+fi
+
+case "$runtime" in
+  node) [ -n "$node_v" ] || { echo "Node.js is not installed."; exit 1; } ;;
+  php) [ -n "$php_v" ] || { echo "PHP is not installed."; exit 1; } ;;
+  python) [ -n "$py_cmd" ] || { echo "Python 3 is not installed."; exit 1; } ;;
+  *) echo "Unknown runtime \"$runtime\"; use node, php or python."; exit 2 ;;
+esac
+
+suggest=4800
+while port_busy $suggest; do suggest=$((suggest + 1)); done
+if [ -z "$port" ]; then
+  if [ $yes -eq 1 ]; then port=$suggest
+  else
+    while :; do
+      read -r -p "  Port [$suggest]: " port
+      port=${port:-$suggest}
+      if ! [[ "$port" =~ ^[0-9]+$ ]] || [ "$port" -lt 1024 ] || [ "$port" -gt 65535 ]; then echo "  ${y}Use a number from 1024 to 65535.${r}"
+      elif port_busy "$port"; then echo "  ${y}Port $port is in use; try $suggest.${r}"
+      else break; fi
+    done
+  fi
+elif ! [[ "$port" =~ ^[0-9]+$ ]] || [ "$port" -lt 1024 ] || [ "$port" -gt 65535 ]; then
+  echo "Use a port from 1024 to 65535."; exit 2
+elif port_busy "$port"; then
+  echo "Port $port is in use; try $suggest."; exit 1
+fi
+
+if [ "$open" = "ask" ]; then
+  if [ $yes -eq 1 ]; then open="yes"
+  else read -r -p "  Open it in your browser? [Y/n]: " a; case "$a" in n|N|no|No) open="no" ;; *) open="yes" ;; esac
+  fi
+fi
+
+url="http://localhost:$port/"
+if [ "$open" = "yes" ]; then
+  (sleep 1
+   if command -v xdg-open >/dev/null; then xdg-open "$url"
+   elif command -v open >/dev/null; then open "$url"
+   elif command -v cmd.exe >/dev/null; then cmd.exe /c start "" "$url"
+   fi) >/dev/null 2>&1 &
+fi
+
+echo
+export KEEL_PORT=$port
+case "$runtime" in
+  node) exec node server/node/server.mjs --port "$port" ;;
+  php) echo "keel dashboard (PHP $php_v) → $url   Stop with Ctrl+C."; exec php -S "127.0.0.1:$port" server/php/router.php ;;
+  python) exec "$py_cmd" server/python/server.py --port "$port" ;;
+esac

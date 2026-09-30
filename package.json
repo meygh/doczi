@@ -1,0 +1,33 @@
+{
+  "name": "keel",
+  "version": "0.1.0",
+  "description": "Working rules, skills and project progress tracking for coding agents, shared by every project through one plugin and one API.",
+  "license": "MIT",
+  "author": "Meisam Ghanbari",
+  "type": "module",
+  "bin": {
+    "keel": "cli/keel.mjs"
+  },
+  "engines": {
+    "node": ">=20"
+  },
+  "scripts": {
+    "test": "node --test test/*.test.mjs",
+    "check": "node --test test/*.test.mjs && node cli/keel.mjs check-ai --self"
+  },
+  "files": [
+    ".claude-plugin",
+    ".codex-plugin",
+    ".agents",
+    ".mcp.json",
+    "agents",
+    "cli",
+    "hooks",
+    "lib",
+    "mcp",
+    "rules",
+    "server",
+    "skills",
+    "templates"
+  ]
+}

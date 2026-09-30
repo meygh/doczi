@@ -1,0 +1,25 @@
+{
+  "name": "keel",
+  "check": "npm run check",
+  "progress": "docs/progress/milestones.json",
+  "rules": ["core", "clean-code", "no-ai-footprint"],
+  "aiFootprint": {
+    "check": true,
+    "allow": [
+      "README.md",
+      ".gitignore",
+      "docs/",
+      "rules/",
+      "lib/ai-terms.mjs",
+      "hooks/",
+      "mcp/",
+      "templates/git-hooks/",
+      "test/",
+      "skills/",
+      "cli/keel.mjs",
+      "package.json"
+    ],
+    "terms": []
+  },
+  "protect": [".env", ".env.*", "*.pem", "*.key", "**/secrets/**"]
+}

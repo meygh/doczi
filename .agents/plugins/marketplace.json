@@ -1,0 +1,36 @@
+{
+  "name": "keel",
+  "interface": {
+    "displayName": "keel"
+  },
+  "plugins": [
+    {
+      "name": "keel",
+      "source": { "source": "url", "url": "https://github.com/meygh/keel.git", "ref": "main" },
+      "policy": { "installation": "AVAILABLE", "authentication": "ON_INSTALL" },
+      "category": "Productivity"
+    },
+    {
+      "name": "ui-ux-pro-max",
+      "source": {
+        "source": "url",
+        "url": "https://github.com/nextlevelbuilder/ui-ux-pro-max-skill.git",
+        "ref": "v2.15.0",
+        "sha": "a38d04c3d5c298c851dbe5e6ee1965ee3de42cb5"
+      },
+      "policy": { "installation": "AVAILABLE", "authentication": "ON_INSTALL" },
+      "category": "Design"
+    },
+    {
+      "name": "engineering",
+      "source": {
+        "source": "git-subdir",
+        "url": "https://github.com/anthropics/knowledge-work-plugins.git",
+        "path": "engineering",
+        "sha": "da38ec1ee89d41e5380e652a97382695003396e7"
+      },
+      "policy": { "installation": "AVAILABLE", "authentication": "ON_INSTALL" },
+      "category": "Development"
+    }
+  ]
+}

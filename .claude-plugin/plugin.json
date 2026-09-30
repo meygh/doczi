@@ -1,0 +1,13 @@
+{
+  "name": "keel",
+  "version": "0.1.0",
+  "description": "Working rules, workflow skills, reviewer agents and project progress tracking for every project, without overriding a project's own setup.",
+  "author": {
+    "name": "Meisam Ghanbari",
+    "url": "https://github.com/meygh"
+  },
+  "homepage": "https://github.com/meygh/keel",
+  "repository": "https://github.com/meygh/keel",
+  "license": "MIT",
+  "keywords": ["workflow", "planning", "tdd", "code-review", "clean-code", "ui-ux", "progress", "milestones"]
+}

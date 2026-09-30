@@ -1,0 +1,136 @@
+{
+  "title": "keel: where we are",
+  "subtitle": "Milestones for keel itself, tracked with keel.",
+  "updated": "2026-09-30",
+  "milestones": [
+    {
+      "id": "v0.1",
+      "name": "First release",
+      "when": "September 2026",
+      "weight": 3,
+      "exit": "A project can install keel in Claude Code or Codex, get the rules and skills, and track progress through MCP, CLI and the dashboard on Node.js, PHP or Python.",
+      "tasks": [
+        {
+          "name": "Core library",
+          "steps": [
+            { "status": "done", "title": "Progress model: validate, summarize, set status, add step, format" },
+            { "status": "done", "title": "AI-mention scanning for text, patches and commit commands" },
+            { "status": "done", "title": "Project config, registry and safe file store" }
+          ]
+        },
+        {
+          "name": "Rules, skills and agents",
+          "steps": [
+            { "status": "done", "title": "Rule modules: core, clean code, no AI footprint, delegation" },
+            { "status": "done", "title": "Workflow skills: plan, implement, delegate, review, ADR, commit" },
+            { "status": "done", "title": "Quality skills: clean code, UI/UX, progress, setup" },
+            { "status": "done", "title": "Reviewer agents: security, tests, UX, performance" }
+          ]
+        },
+        {
+          "name": "Hooks",
+          "steps": [
+            { "status": "done", "title": "Session start: rules and progress line" },
+            { "status": "done", "title": "Edit guard: protected files and AI mentions" },
+            { "status": "done", "title": "Commit, tag and PR text check" },
+            { "status": "done", "title": "Standalone commit-msg git hook" }
+          ]
+        },
+        {
+          "name": "API",
+          "steps": [
+            { "status": "done", "title": "MCP server over stdio" },
+            { "status": "done", "title": "CLI: init, progress, check-ai, git-hooks, projects, serve, mcp" },
+            { "status": "done", "title": "HTTP contract and shared test suite" },
+            { "status": "done", "title": "Node.js, PHP and Python servers" },
+            { "status": "done", "title": "Dashboard with project switcher, paging and themes" },
+            { "status": "done", "title": "Launcher menus for Bash and PowerShell" }
+          ],
+          "docs": [
+            {
+              "title": "HTTP contract",
+              "path": "docs/API.md#http"
+            },
+            {
+              "title": "MCP tools",
+              "path": "docs/API.md#mcp-tools"
+            }
+          ]
+        },
+        {
+          "name": "Packaging",
+          "steps": [
+            { "status": "done", "title": "Plugin manifests and marketplaces for both tools" },
+            { "status": "done", "title": "Pinned upstream plugins: ui-ux-pro-max, engineering" },
+            { "status": "done", "title": "README and API docs" },
+            { "status": "doing", "title": "Install into a real project and use it for a week" },
+            { "status": "todo", "title": "Verify plugin install end to end in Claude Code" },
+            { "status": "todo", "title": "Verify plugin install end to end in Codex" }
+          ],
+          "questions": [
+            {
+              "q": "Should keel also be published to npm, or is installing from GitHub enough?"
+            }
+          ]
+        },
+        {
+          "name": "Dashboard and API v2",
+          "steps": [
+            { "status": "done", "title": "Statuses: waiting for your check, blocked with reason" },
+            { "status": "done", "title": "Questions and answers per task" },
+            { "status": "done", "title": "Linked documents with a reader" },
+            { "status": "review", "title": "Collapsible tasks, status bar, search and filters" }
+          ]
+        },
+        {
+          "name": "Security review",
+          "steps": [
+            { "status": "done", "title": "Fix the eleven findings with regression tests" }
+          ]
+        }
+      ]
+    },
+    {
+      "id": "v0.2",
+      "name": "Smoother everyday use",
+      "when": "after a week of real use",
+      "weight": 2,
+      "exit": "No manual steps after installing the plugin, in either tool.",
+      "tasks": [
+        {
+          "name": "Codex",
+          "steps": [
+            { "status": "todo", "title": "Register the MCP server automatically on install" },
+            { "status": "todo", "title": "Check hook commands under Windows PowerShell" }
+          ]
+        },
+        {
+          "name": "Progress",
+          "steps": [
+            { "status": "todo", "title": "Use MCP roots to find the project without a path" },
+            { "status": "todo", "title": "Edit step titles and notes from the dashboard" },
+            { "status": "todo", "title": "History of changes per step (from git)" }
+          ]
+        }
+      ]
+    }
+  ],
+  "docs": [
+    {
+      "title": "README",
+      "path": "README.md"
+    },
+    {
+      "title": "API",
+      "path": "docs/API.md"
+    },
+    {
+      "title": "Plan",
+      "path": "docs/PLAN.md"
+    },
+    {
+      "title": "Contributing",
+      "path": "AGENTS.md"
+    }
+  ]
+}

@@ -1,0 +1,39 @@
+{
+  "$schema": "https://anthropic.com/claude-code/marketplace.schema.json",
+  "name": "keel",
+  "description": "keel and the upstream skills it recommends, pinned to reviewed versions.",
+  "owner": {
+    "name": "Meisam Ghanbari",
+    "url": "https://github.com/meygh"
+  },
+  "plugins": [
+    {
+      "name": "keel",
+      "source": "./",
+      "description": "Working rules, workflow skills, reviewer agents and project progress tracking.",
+      "category": "productivity"
+    },
+    {
+      "name": "ui-ux-pro-max",
+      "source": {
+        "source": "github",
+        "repo": "nextlevelbuilder/ui-ux-pro-max-skill",
+        "ref": "v2.15.0",
+        "sha": "a38d04c3d5c298c851dbe5e6ee1965ee3de42cb5"
+      },
+      "description": "UI/UX design intelligence: styles, palettes, font pairings, charts and stack guidelines (MIT, by nextlevelbuilder).",
+      "category": "design"
+    },
+    {
+      "name": "engineering",
+      "source": {
+        "source": "git-subdir",
+        "url": "https://github.com/anthropics/knowledge-work-plugins.git",
+        "path": "engineering",
+        "sha": "da38ec1ee89d41e5380e652a97382695003396e7"
+      },
+      "description": "Standups, code review, architecture decisions, debugging, incident response, testing strategy, tech debt and documentation (Apache-2.0, by Anthropic).",
+      "category": "development"
+    }
+  ]
+}

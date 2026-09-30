@@ -1,0 +1,49 @@
+{
+  "$schema": "https://raw.githubusercontent.com/meygh/keel/main/templates/progress/progress.schema.json",
+  "title": "Where we are",
+  "subtitle": "Milestones, their tasks, and the steps we split each task into.",
+  "updated": "",
+  "milestones": [
+    {
+      "id": "M0",
+      "name": "Foundations",
+      "when": "weeks 1–2",
+      "weight": 2,
+      "exit": "A fresh clone builds, tests and runs locally with one command.",
+      "tasks": [
+        {
+          "name": "Repository and tooling",
+          "steps": [
+            { "status": "todo", "title": "Repository layout and README" },
+            { "status": "todo", "title": "One command for lint, tests and build" },
+            { "status": "todo", "title": "Continuous integration running the same command" }
+          ]
+        },
+        {
+          "name": "Local environment",
+          "steps": [
+            { "status": "todo", "title": "Local services start with one command" },
+            { "status": "todo", "title": "Smoke test for the local stack" }
+          ]
+        }
+      ]
+    },
+    {
+      "id": "M1",
+      "name": "First usable version",
+      "when": "weeks 3–6",
+      "weight": 4,
+      "exit": "A real user completes the main flow end to end.",
+      "tasks": [
+        {
+          "name": "Main flow",
+          "steps": [
+            { "status": "todo", "title": "Data model and storage" },
+            { "status": "todo", "title": "API for the main flow" },
+            { "status": "todo", "title": "Screens for the main flow" }
+          ]
+        }
+      ]
+    }
+  ]
+}

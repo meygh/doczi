@@ -1,0 +1,4 @@
+#!/bin/sh
+# keel-managed commit-msg hook (keel replaces this file on update; put your own hook elsewhere).
+# Strips assistant attribution from commit messages; the logic is in keel-commit-msg.cjs.
+exec node "$(dirname "$0")/keel-commit-msg.cjs" "$@"

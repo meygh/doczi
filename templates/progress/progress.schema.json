@@ -1,0 +1,221 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "progress.schema.json",
+  "title": "Progress checklist",
+  "description": "Milestones → tasks → steps. Percentages are never stored; the page works them out from step statuses.",
+  "type": "object",
+  "required": [
+    "milestones"
+  ],
+  "additionalProperties": false,
+  "properties": {
+    "$schema": {
+      "type": "string"
+    },
+    "title": {
+      "type": "string",
+      "description": "Page heading."
+    },
+    "subtitle": {
+      "type": "string",
+      "description": "One line under the heading."
+    },
+    "updated": {
+      "type": "string",
+      "format": "date",
+      "description": "Date of the last edit, YYYY-MM-DD."
+    },
+    "milestones": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "required": [
+          "id",
+          "name",
+          "tasks"
+        ],
+        "additionalProperties": false,
+        "properties": {
+          "id": {
+            "type": "string",
+            "description": "Short label, e.g. M0."
+          },
+          "name": {
+            "type": "string"
+          },
+          "when": {
+            "type": "string",
+            "description": "Free text, e.g. weeks 1–4."
+          },
+          "weight": {
+            "type": "number",
+            "minimum": 0,
+            "description": "Share of the whole project, e.g. planned weeks. Defaults to 1."
+          },
+          "exit": {
+            "type": "string",
+            "description": "What must be true for the milestone to count as done."
+          },
+          "tasks": {
+            "type": "array",
+            "items": {
+              "type": "object",
+              "required": [
+                "name",
+                "steps"
+              ],
+              "additionalProperties": false,
+              "properties": {
+                "name": {
+                  "type": "string"
+                },
+                "note": {
+                  "type": "string",
+                  "description": "Shown under the task, e.g. why a step is blocked."
+                },
+                "steps": {
+                  "type": "array",
+                  "items": {
+                    "type": "object",
+                    "required": [
+                      "status",
+                      "title"
+                    ],
+                    "additionalProperties": false,
+                    "properties": {
+                      "status": {
+                        "enum": [
+                          "done",
+                          "review",
+                          "doing",
+                          "blocked",
+                          "todo"
+                        ],
+                        "description": "done · review (waiting for your check) · doing · blocked (give a reason) · todo"
+                      },
+                      "title": {
+                        "type": "string"
+                      },
+                      "reason": {
+                        "type": "string",
+                        "description": "Why the step is blocked."
+                      }
+                    }
+                  }
+                },
+                "questions": {
+                  "type": "array",
+                  "items": {
+                    "type": "object",
+                    "required": [
+                      "q"
+                    ],
+                    "additionalProperties": false,
+                    "properties": {
+                      "q": {
+                        "type": "string"
+                      },
+                      "a": {
+                        "type": "string"
+                      }
+                    }
+                  }
+                },
+                "docs": {
+                  "type": "array",
+                  "items": {
+                    "anyOf": [
+                      {
+                        "type": "string"
+                      },
+                      {
+                        "type": "object",
+                        "required": [
+                          "path"
+                        ],
+                        "additionalProperties": false,
+                        "properties": {
+                          "title": {
+                            "type": "string"
+                          },
+                          "path": {
+                            "type": "string",
+                            "description": "Path inside the project, optionally with #anchor."
+                          }
+                        }
+                      }
+                    ]
+                  }
+                },
+                "blocked": {
+                  "type": "string",
+                  "description": "Why the whole task is blocked."
+                }
+              }
+            }
+          },
+          "docs": {
+            "type": "array",
+            "items": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "object",
+                  "required": [
+                    "path"
+                  ],
+                  "additionalProperties": false,
+                  "properties": {
+                    "title": {
+                      "type": "string"
+                    },
+                    "path": {
+                      "type": "string",
+                      "description": "Path inside the project, optionally with #anchor."
+                    }
+                  }
+                }
+              ]
+            }
+          },
+          "blocked": {
+            "type": "string",
+            "description": "Why the whole milestone is blocked."
+          }
+        }
+      }
+    },
+    "docs": {
+      "type": "array",
+      "items": {
+        "anyOf": [
+          {
+            "type": "string"
+          },
+          {
+            "type": "object",
+            "required": [
+              "path"
+            ],
+            "additionalProperties": false,
+            "properties": {
+              "title": {
+                "type": "string"
+              },
+              "path": {
+                "type": "string",
+                "description": "Path inside the project, optionally with #anchor."
+              }
+            }
+          }
+        ]
+      }
+    },
+    "root": {
+      "type": "string",
+      "description": "File mode only: path from this page to the project root (default ../../)."
+    }
+  }
+}

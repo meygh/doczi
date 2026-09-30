@@ -1,0 +1,126 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Project progress</title>
+<script src="theme.js"></script>
+<link rel="stylesheet" href="style.css">
+</head>
+<body>
+<a class="skip" href="#milestones">Skip to milestones</a>
+
+<header class="topbar">
+  <div class="topbar-inner">
+    <div class="brand">
+      <h1 id="title">Project progress</h1>
+      <p class="sub" id="updated"></p>
+    </div>
+    <div class="topbar-tools">
+      <label class="project-picker" id="project-picker" hidden>
+        <span class="visually-hidden">Project</span>
+        <select id="project" aria-label="Project"></select>
+      </label>
+      <label class="search">
+        <span class="visually-hidden">Search</span>
+        <input type="search" id="search" placeholder="Search steps, tasks, questions…" autocomplete="off" aria-describedby="search-hint">
+        <kbd aria-hidden="true">/</kbd>
+        <span class="visually-hidden" id="search-hint">Press slash from anywhere to jump here.</span>
+      </label>
+      <button id="theme" class="ghost" title="Switch between light, dark and your system setting"></button>
+    </div>
+  </div>
+</header>
+
+<main>
+  <nav class="docs-bar" id="project-docs" aria-label="Project documents" hidden></nav>
+
+  <section class="card skeleton" id="loading" aria-busy="true" aria-live="polite">
+    <p class="visually-hidden">Loading progress…</p>
+    <div class="sk sk-title"></div><div class="sk sk-bar"></div><div class="sk sk-line"></div>
+    <div class="sk sk-bar thin"></div><div class="sk sk-line short"></div>
+  </section>
+
+  <section class="card load-error" id="load-error" hidden>
+    <h2 id="load-error-title">The list couldn't be loaded</h2>
+    <p id="load-error-text"></p>
+    <p><button id="retry" class="primary" hidden>Try again</button></p>
+    <div id="file-help">
+      <p>Browsers don't let a page read files next to it when it's opened straight from disk.
+        Serve the folder instead (for example with keel's <code>serve</code> menu), or pick the JSON file:</p>
+      <input type="file" id="pick" accept=".json,application/json">
+    </div>
+  </section>
+
+  <div id="app" hidden>
+    <section class="card overview" aria-labelledby="overview-title">
+      <div class="overview-head">
+        <h2 id="overview-title">Whole project</h2>
+        <span class="big" id="total-pct">0%</span>
+      </div>
+      <div class="bar thick" id="total-bar"></div>
+      <p class="stats" id="total-stats"></p>
+
+      <div class="overview-head small">
+        <h3>Tasks by status</h3>
+        <button class="link" id="clear-filter" hidden>Show all statuses</button>
+      </div>
+      <div class="dist" id="status-bar" aria-hidden="true"></div>
+      <ul class="legend" id="legend" aria-label="Filter tasks by status"></ul>
+    </section>
+
+    <section class="card attention" id="attention" hidden aria-labelledby="attention-title">
+      <h2 id="attention-title">Needs you</h2>
+      <div id="attention-body"></div>
+    </section>
+
+    <div class="card notice" id="notice">
+      <span id="notice-text"></span>
+      <span class="notice-actions">
+        <button id="download">Download updated JSON</button>
+        <button id="copy">Copy JSON</button>
+        <button id="discard">Discard changes in this browser</button>
+      </span>
+    </div>
+
+    <div class="toolbar">
+      <button id="expand">Expand all</button>
+      <button id="collapse">Collapse all</button>
+      <label><input type="checkbox" id="hide-done"> Hide finished</label>
+      <span class="spacer"></span>
+      <label>Milestones per page
+        <select id="per-page"><option>1</option><option>2</option><option selected>3</option><option>5</option></select>
+      </label>
+      <button id="show-all" aria-pressed="false">Show all</button>
+    </div>
+
+    <p class="filter-note" id="filter-note" aria-live="polite" hidden></p>
+    <div id="milestones"></div>
+    <nav class="pager" id="pager" aria-label="Milestone pages"></nav>
+
+    <footer>
+      <p>How the numbers work: a step counts fully when done, ¾ while it waits for your check, ½ while in
+        progress, and nothing while blocked or not started. A task is the share of its steps, a milestone the
+        average of its tasks, and the whole project weights each milestone by its <code>weight</code>. Nothing
+        stores a percentage.</p>
+      <p id="how-to-update"></p>
+    </footer>
+  </div>
+</main>
+
+<dialog id="reader" aria-labelledby="reader-title">
+  <div class="reader-head">
+    <div>
+      <h2 id="reader-title">Document</h2>
+      <p class="sub" id="reader-path"></p>
+    </div>
+    <button class="ghost icon" id="reader-close" aria-label="Close document">✕</button>
+  </div>
+  <nav class="reader-toc" id="reader-toc" aria-label="Contents"></nav>
+  <article class="doc" id="reader-body"></article>
+</dialog>
+
+<div class="toast" id="toast" role="status" aria-live="polite"><span id="toast-text"></span><button type="button" id="toast-undo" hidden>Undo</button></div>
+<script src="app.js"></script>
+</body>
+</html>
