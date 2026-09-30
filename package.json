@@ -28,6 +28,10 @@
     "rules",
     "server",
     "skills",
-    "templates"
+    "templates",
+    "web",
+    "serve",
+    "serve.cmd",
+    "serve.ps1"
   ]
 }
