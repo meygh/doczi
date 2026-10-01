@@ -71,6 +71,7 @@ flowchart LR
 | `/doczi:commit` | One Conventional Commit, after the project's check passes |
 | `/doczi:clean-code`, `/doczi:ui-ux` | Review against the code and UI standards |
 | `/doczi:progress`, `/doczi:setup` | Report or update progress; set a project up |
+| `/doczi:import-tasks` | Turn an SRS, plan or checklist into milestones, tasks and steps linked to their sections; writes only after you agree |
 
 **Reviewer agents**: `security-reviewer`, `test-writer`, `ux-reviewer`, `perf-reviewer`.
 
@@ -85,7 +86,7 @@ flowchart LR
 - Questions and answers per task. Answers an agent records stay open until you confirm them.
 - Document links (SRS, architecture, plans, ADRs) at project, milestone and task level.
 
-**Dashboard** (served by Node.js, PHP or Python; you pick in a short menu)
+**Dashboard** (served by Node.js, PHP or Python; starts with no questions, `--setup` to choose)
 - Whole-project bar, and a "Tasks by status" bar with a legend that filters.
 - A **Needs you** panel: blocked items with reasons, work waiting for your check, open
   questions.
@@ -94,6 +95,13 @@ flowchart LR
 - A document reader that renders Markdown and jumps to the linked section.
 - Search (`/`), shareable links, light, dark and system themes, phone layout, keyboard and
   screen-reader support.
+- **Six interface languages:** English, Persian, Arabic, German, Spanish and Turkish.
+  - The page follows the browser's language; a menu in the top bar changes it.
+  - Persian and Arabic read right to left.
+  - Numbers and dates follow the language. Persian, for example, gets Persian digits and the
+    Solar Hijri calendar.
+  - The strings are in `web/i18n/<code>.js`. To add a language, add a file there with the same
+    keys as `en.js`; a test checks that the keys and placeholders match.
 
 **Optional, pinned upstream plugins** in the same marketplace:
 [ui-ux-pro-max](https://github.com/nextlevelbuilder/ui-ux-pro-max-skill) (MIT) for design
@@ -168,6 +176,11 @@ doczi progress
 doczi serve
 ```
 
+The first start asks nothing: it serves with Node.js (or PHP, or Python 3) on port 4800 and
+opens your browser. To choose for yourself, once, run `doczi serve --setup`. The choices are
+kept in `~/.doczi/serve.conf` for the next starts. `doczi serve --reset` goes back to the
+defaults.
+
 Your agents keep the progress current as they work: steps move to in progress, waiting for your
 check or blocked (with a reason), and questions for you land on the task.
 
@@ -181,8 +194,11 @@ check or blocked (with a reason), and questions for you land on the task.
 | `doczi progress set M0 "Task" 2 blocked --reason "…"` | Change a step (by name, part of a name, or number) |
 | `doczi progress add M1 "Task" "Step"` | Add a step |
 | `doczi progress ask M1 "Task" "Question?"` · `answer M1 "Task" 1 "Answer"` | Questions and answers |
+| `doczi progress label M1 "Task" --type bug --add ui,api` | Set a task's type and tags (`--type none`, `--remove`, `--tags` replaces) |
+| `doczi import docs/SRS.md --milestone M1 [--bullets] [--write]` | Add tasks from a document's headings and checklists (or a JSON plan); previews unless `--write` |
+| `doczi export [--format md\|csv\|json] [--out file\|-]` | Write the plan to a new file (never over an existing one), or print it |
 | `doczi projects [add <path> \| remove <id>]` | The dashboard's project list |
-| `doczi serve [--runtime node\|php\|python] [--port N]` | Start the dashboard |
+| `doczi serve [--setup \| --reset] [--runtime node\|php\|python] [--port N] [--no-open]` | Start the dashboard with the saved settings (the defaults the first time, no questions); `--setup` chooses and saves them, `--reset` forgets them, the other flags apply to one run |
 | `doczi git-hooks` | Install the commit-msg hook that strips assistant attribution |
 | `doczi migrate [dir]` | Move a project set up as solo-keel to doczi (see below) |
 | `doczi check-ai [files…]` | Scan files for AI tool or vendor mentions |

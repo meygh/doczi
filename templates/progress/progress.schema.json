@@ -69,6 +69,30 @@
                 "name": {
                   "type": "string"
                 },
+                "type": {
+                  "enum": [
+                    "feature",
+                    "bug",
+                    "issue",
+                    "refinement",
+                    "redesign",
+                    "chore",
+                    "docs",
+                    "research",
+                    "security"
+                  ],
+                  "description": "What kind of work the task is."
+                },
+                "tags": {
+                  "type": "array",
+                  "maxItems": 10,
+                  "uniqueItems": true,
+                  "items": {
+                    "type": "string",
+                    "pattern": "^[p{Ll}p{Lo}p{N}](?:[p{Ll}p{Lo}p{N}-]{0,28}[p{Ll}p{Lo}p{N}])?$"
+                  },
+                  "description": "Lower case, no spaces; for grouping and filtering."
+                },
                 "note": {
                   "type": "string",
                   "description": "Shown under the task, e.g. why a step is blocked."

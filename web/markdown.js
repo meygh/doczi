@@ -7,6 +7,21 @@
 
   const esc = (s) => String(s ?? "").replace(/[&<>"']/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c]));
 
+  // "## Title ##" → { level: 2, text: "Title" }, without a regex that could backtrack on a long
+  // line. A closing run of # is dropped only after a space ("C#" stays). Mirrors
+  // splitHeading in lib/importer.mjs, so imported section links match these anchors.
+  function splitHeading(line) {
+    let level = 0;
+    while (level < line.length && line[level] === "#") level++;
+    if (level < 1 || level > 6 || (line[level] !== " " && line[level] !== "\t")) return null;
+    let text = line.slice(level).trim();
+    let end = text.length;
+    while (end > 0 && text[end - 1] === "#") end--;
+    if (end === 0) text = "";
+    else if (end < text.length && (text[end - 1] === " " || text[end - 1] === "\t")) text = text.slice(0, end).trimEnd();
+    return { level, text };
+  }
+
   function render(src, { linked = new Set(), dir = "" } = {}) {
     const lines = String(src).replace(/\r\n?/g, "\n").split("\n");
     const toc = [];
@@ -97,10 +112,10 @@
         continue;
       }
       if (!line.trim()) { i++; continue; }
-      if ((m = line.match(/^(#{1,6})\s+(.*?)\s*#*\s*$/))) {
-        const level = m[1].length, plain = m[2].replace(/[*_`]/g, ""), id = slug(plain);
+      if ((m = splitHeading(line))) {
+        const level = m.level, plain = m.text.replace(/[*_`]/g, ""), id = slug(plain);
         toc.push({ level, id, plain });
-        html += `<h${level} id="${esc(id)}">${inline(m[2])}</h${level}>`;
+        html += `<h${level} id="${esc(id)}">${inline(m.text)}</h${level}>`;
         i++; continue;
       }
       if (/^\s*([-*_])(\s*\1){2,}\s*$/.test(line)) { html += "<hr>"; i++; continue; }

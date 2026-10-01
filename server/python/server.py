@@ -34,6 +34,14 @@ FILES = {
     "/index.html": ("index.html", "text/html; charset=utf-8"),
     "/app.js": ("app.js", "text/javascript; charset=utf-8"),
     "/markdown.js": ("markdown.js", "text/javascript; charset=utf-8"),
+    "/export.js": ("export.js", "text/javascript; charset=utf-8"),
+    "/i18n.js": ("i18n.js", "text/javascript; charset=utf-8"),
+    "/i18n/en.js": ("i18n/en.js", "text/javascript; charset=utf-8"),
+    "/i18n/fa.js": ("i18n/fa.js", "text/javascript; charset=utf-8"),
+    "/i18n/ar.js": ("i18n/ar.js", "text/javascript; charset=utf-8"),
+    "/i18n/de.js": ("i18n/de.js", "text/javascript; charset=utf-8"),
+    "/i18n/es.js": ("i18n/es.js", "text/javascript; charset=utf-8"),
+    "/i18n/tr.js": ("i18n/tr.js", "text/javascript; charset=utf-8"),
     "/theme.js": ("theme.js", "text/javascript; charset=utf-8"),
     "/style.css": ("style.css", "text/css; charset=utf-8"),
 }
@@ -437,7 +445,7 @@ def main():
     parser.add_argument("--port", type=int, default=int(env("PORT") or 4800))
     args = parser.parse_args()
     server = ThreadingHTTPServer(("127.0.0.1", args.port), Handler)
-    print(f"doczi dashboard (Python {sys.version.split()[0]}) → http://localhost:{args.port}/   Stop with Ctrl+C.", flush=True)
+    print(f"doczi dashboard (Python {sys.version.split()[0]}) at http://localhost:{args.port}/ - stop with Ctrl+C.", flush=True)
     try:
         server.serve_forever()
     except KeyboardInterrupt:

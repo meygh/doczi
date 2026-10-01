@@ -7,14 +7,16 @@ import { fileURLToPath } from "node:url";
 import { isAllowed, scanText } from "../lib/ai-terms.mjs";
 import { configFile as findConfigFile, DEFAULT_CONFIG, findRoot, loadConfig, RULE_MODULES } from "../lib/config.mjs";
 import { CONFIG_FILE, env, home, LEGACY_CONFIG_FILE, legacyHome } from "../lib/names.mjs";
-import { addQuestion, addStep, answerQuestion, format, parse, setStatus } from "../lib/progress.mjs";
+import { addQuestion, addStep, answerQuestion, format, labelTask, labelText, parse, setStatus, TASK_TYPES } from "../lib/progress.mjs";
 import { list, register, unregister } from "../lib/registry.mjs";
 import { clean, listText, summaryText } from "../lib/report.mjs";
+import { toCsv, toJson, toMarkdown } from "../lib/export.mjs";
+import { importReport, mergePlan, planFromFile } from "../lib/importer.mjs";
 import { occupied } from "../lib/fsutil.mjs";
 import { assertInside, openProject, readProgress, updateProgress, writeFileAtomic } from "../lib/store.mjs";
 
 const PACKAGE_ROOT = path.resolve(fileURLToPath(new URL("..", import.meta.url)));
-const WEB_FILES = ["index.html", "app.js", "markdown.js", "theme.js", "style.css"];
+const WEB_FILES = ["index.html", "app.js", "markdown.js", "export.js", "i18n.js", "i18n/en.js", "i18n/fa.js", "i18n/ar.js", "i18n/de.js", "i18n/es.js", "i18n/tr.js", "theme.js", "style.css"];
 
 const HELP = `doczi — working rules, skills and progress tracking for your projects
 
@@ -32,8 +34,21 @@ Usage: doczi <command> [options]
                              status: done, review (waiting for a check), doing,
                              blocked (needs --reason) or todo
       add <milestone> <task> "<step title>" [--status doing]
+      label <milestone> <task> [--type <type>|none] [--add a,b] [--remove c] [--tags a,b]
+                             type: feature, bug, issue, refinement, redesign, chore,
+                             docs, research or security; tags: lower case, no spaces
       ask <milestone> <task> "<question>"
       answer <milestone> <task> <question number or text> "<answer>"
+      --project <id|path>    Another project than the current one
+  import <file>              Add tasks and steps from a document; shows them first
+      --milestone <id>       Milestone for a Markdown file's tasks (created if new)
+      --name "<name>"        Its name, when it is new
+      --bullets              Plain list items become steps too, not only "- [ ]"
+      --write                Add them (without it, nothing is written)
+                             A .json file is a plan: { "milestones": [ … ] }
+  export                     Write the plan to a new file (never over an existing one)
+      --format md|csv|json   Default md
+      --out <file>|-         Default <title>-progress-<date>.<format>; - prints it
       --project <id|path>    Another project than the current one
   check-ai [files…]          Find AI tool or vendor mentions (default: all tracked files)
   git-hooks [dir]            Install the commit-msg hook that strips assistant attribution
@@ -41,8 +56,12 @@ Usage: doczi <command> [options]
                              and copy the project list. Never overwrites files.
   projects                   List registered projects
       add <path> | remove <id>
-  serve [options]            Start the dashboard (menu: Node.js, PHP or Python)
-      --runtime node|php|python  --port <n>  --no-open  --yes
+  serve [options]            Start the dashboard: with the saved settings, or the defaults
+                             the first time (no questions)
+      --setup                Choose runtime, port and browser, and save them
+      --reset                Forget the saved settings
+      --runtime node|php|python  --port <n>  --open | --no-open   For this run only
+      --dry-run              Say what it would start, and stop
   mcp                        Run the MCP server on stdio (agents use this)
   help                       This text
 
@@ -56,7 +75,7 @@ function parseArgs(argv) {
     if (a.startsWith("--")) {
       const [key, inline] = a.slice(2).split("=", 2);
       if (inline !== undefined) out.flags[key] = inline;
-      else if (argv[i + 1] !== undefined && !argv[i + 1].startsWith("--") && !["page", "no-register", "no-rules", "all", "yes", "no-open", "open", "self", "staged"].includes(key)) out.flags[key] = argv[++i];
+      else if (argv[i + 1] !== undefined && !argv[i + 1].startsWith("--") && !["page", "no-register", "no-rules", "all", "yes", "no-open", "open", "self", "staged", "write", "bullets"].includes(key)) out.flags[key] = argv[++i];
       else out.flags[key] = true;
     } else out._.push(a);
   }
@@ -157,10 +176,53 @@ function progress(args) {
     const r = updateProgress(project, (d) => addStep(d, { milestone, task, title, status: args.flags.status || "todo" }));
     return say(`Added "${r.step}" (${r.status}) to ${r.milestone} › ${r.task}.`);
   }
-  if (sub) throw new UsageError(`Unknown progress command "${sub}". Use set, add, ask or answer, or nothing for the summary.`);
+  if (sub === "label") {
+    const [milestone, task] = rest;
+    const list = (flag) => (typeof args.flags[flag] === "string" ? args.flags[flag].split(",").filter((x) => x.trim()) : undefined);
+    const type = typeof args.flags.type === "string" ? args.flags.type : undefined;
+    if (!task || (type === undefined && !list("tags") && !list("add") && !list("remove"))) {
+      throw new UsageError(`Usage: doczi progress label <milestone> <task> [--type ${TASK_TYPES.join("|")}|none] [--add a,b] [--remove c] [--tags a,b]`);
+    }
+    const r = updateProgress(project, (d) => labelTask(d, { milestone, task, type, tags: list("tags"), add: list("add") || [], remove: list("remove") || [] }));
+    return say(`${r.milestone} › ${r.task.name}: ${labelText(r.task) || "no type or tags"}`);
+  }
+  if (sub) throw new UsageError(`Unknown progress command "${sub}". Use set, add, ask, answer or label, or nothing for the summary.`);
   const data = readProgress(project);
   if (args.flags.all || args.flags.milestone) return say(listText(data, typeof args.flags.milestone === "string" ? args.flags.milestone : undefined));
   say(summaryText(data));
+}
+
+const EXPORTERS = { md: toMarkdown, csv: toCsv, json: toJson };
+
+// Read a Markdown document (or a JSON plan) into tasks and steps; show what would be added,
+// and add it only with --write.
+function importPlan(args) {
+  const [source] = args._;
+  if (!source) throw new UsageError("Usage: doczi import <file.md> --milestone <id> [--name \"…\"] [--bullets] [--write]\n       doczi import <plan.json> [--write]");
+  const project = openProject(args.flags.project);
+  const plan = planFromFile(project.root, path.resolve(source), {
+    milestone: typeof args.flags.milestone === "string" ? args.flags.milestone : undefined,
+    name: typeof args.flags.name === "string" ? args.flags.name : undefined,
+    bullets: args.flags.bullets === true,
+  });
+  if (!args.flags.write) return say(importReport(mergePlan(structuredClone(readProgress(project)), plan), false, "Run again with --write to add them."));
+  say(importReport(updateProgress(project, (d) => mergePlan(d, plan)), true));
+}
+
+function exportPlan(args) {
+  const kind = typeof args.flags.format === "string" ? args.flags.format.toLowerCase() : "md";
+  if (!Object.hasOwn(EXPORTERS, kind)) throw new UsageError(`Unknown format "${args.flags.format}"; use md, csv or json.`);
+  const data = readProgress(openProject(args.flags.project));
+  const text = EXPORTERS[kind](data);
+  if (args.flags.out === "-") return process.stdout.write(text);
+  const slug = String(data.title || "").toLowerCase().replace(/[^\p{L}\p{N}]+/gu, "-").replace(/^-|-$/g, "").slice(0, 60);
+  const out = typeof args.flags.out === "string" ? args.flags.out : `${slug ? slug + "-" : ""}progress-${new Date().toISOString().slice(0, 10)}.${kind}`;
+  try { fs.writeFileSync(path.resolve(out), text, { flag: "wx" }); }
+  catch (err) {
+    if (err.code === "EEXIST") throw new UsageError(`${out} already exists; doczi never overwrites. Choose another name with --out.`);
+    throw err;
+  }
+  say(`Wrote ${out}.`);
 }
 
 function checkAi(args) {
@@ -270,7 +332,7 @@ function serve(argv) {
 
 // "--runtime php --no-open" → "-Runtime php -NoOpen" for the PowerShell launcher.
 function toPsArgs(argv) {
-  const names = { runtime: "-Runtime", port: "-Port", "no-open": "-NoOpen", open: "-Open", yes: "-Yes", y: "-Yes" };
+  const names = { runtime: "-Runtime", port: "-Port", "no-open": "-NoOpen", open: "-Open", setup: "-Setup", reset: "-Reset", "dry-run": "-DryRun", yes: "-Yes", y: "-Yes" };
   return argv.map((a) => (a.startsWith("-") ? names[a.replace(/^-+/, "")] || a : a));
 }
 
@@ -280,6 +342,8 @@ try {
   switch (command) {
     case "init": init(parseArgs(rest)); break;
     case "progress": progress(parseArgs(rest)); break;
+    case "import": importPlan(parseArgs(rest)); break;
+    case "export": exportPlan(parseArgs(rest)); break;
     case "check-ai": checkAi(parseArgs(rest)); break;
     case "git-hooks": gitHooks(parseArgs(rest)); break;
     case "migrate": migrate(parseArgs(rest)); break;

@@ -7,8 +7,16 @@
   "use strict";
 
   const $ = (id) => document.getElementById(id);
+  // Every text the page shows comes from i18n.js: tr() for text, trHtml() for HTML.
+  const i18n = window.docziI18n;
+  const tr = i18n.t, trHtml = i18n.html;
   const STATUSES = ["done", "review", "doing", "blocked", "todo"];
-  const LABELS = { done: "Done", review: "Waiting for your check", doing: "In progress", blocked: "Blocked", todo: "Not started" };
+  const statusLabel = (k) => tr(`status.${k}`);
+  // Task types, as in lib/progress.mjs.
+  const TYPES = ["feature", "bug", "issue", "refinement", "redesign", "chore", "docs", "research", "security"];
+  const typeLabel = (k) => tr(`type.${k}`);
+  const typeOf = (t) => (TYPES.includes(t.type) ? t.type : null);
+  const tagsOf = (t) => (Array.isArray(t.tags) ? t.tags.filter((x) => typeof x === "string" && x) : []);
   const WORTH = { done: 1, review: 0.75, doing: 0.5, blocked: 0, todo: 0 };
   const DOC_ICON = '<svg class="doc-icon" viewBox="0 0 16 16" aria-hidden="true"><path fill="currentColor" d="M4 1h5l4 4v9a1 1 0 0 1-1 1H4a1 1 0 0 1-1-1V2a1 1 0 0 1 1-1zm4.5 1.5V6H12M5 8h6v1H5zm0 2.5h6v1H5z"/></svg>';
   const esc = (s) => String(s ?? "").replace(/[&<>"']/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c]));
@@ -36,21 +44,25 @@
   $("toast-undo").onclick = () => { const fn = toastUndo; toastUndo = null; $("toast").classList.remove("show"); fn?.(); };
 
   // ---------------------------------------------------------------- theme
-  const themeLabel = { system: "◐ System", light: "☀ Light", dark: "☾ Dark" };
+  const THEMES = ["system", "light", "dark"];
   let theme = document.documentElement.dataset.theme || "system";
   function applyTheme() {
     if (theme === "system") delete document.documentElement.dataset.theme;
     else document.documentElement.dataset.theme = theme;
-    $("theme").textContent = themeLabel[theme];
-    $("theme").setAttribute("aria-label", `Theme: ${theme}. Change theme`);
+    $("theme").textContent = tr(`theme.${theme}`);
+    $("theme").setAttribute("aria-label", tr("theme.aria", { name: tr(`theme.${theme}`) }));
     try { localStorage.setItem("progress-theme", theme); } catch { /* private mode */ }
   }
   $("theme").onclick = () => {
-    const order = Object.keys(themeLabel);
-    theme = order[(order.indexOf(theme) + 1) % order.length];
+    theme = THEMES[(THEMES.indexOf(theme) + 1) % THEMES.length];
     applyTheme();
   };
   applyTheme();
+
+  // ---------------------------------------------------------------- language
+  $("language").innerHTML = i18n.LANGUAGES.map((l) =>
+    `<option value="${l.code}" lang="${l.code}" ${l.code === i18n.lang ? "selected" : ""}>${esc(l.name)}</option>`).join("");
+  $("language").onchange = () => i18n.setLanguage($("language").value);
 
   // Keep jump targets clear of the sticky header, whatever its height.
   if ("ResizeObserver" in window) {
@@ -88,16 +100,16 @@
   async function startApi() {
     mode = "api";
     $("download").hidden = $("copy").hidden = $("discard").hidden = true;
-    $("how-to-update").textContent = "Changes you make here save to the project's progress file straight away. Agents update the same file through doczi's tools.";
+    $("how-to-update").textContent = tr("howToUpdate.api");
     let projects;
     try { projects = (await api("api/projects")).projects; }
-    catch (err) { retry = startApi; return fail("Couldn't reach the doczi server", `${err.message}. Check that it is still running, then try again.`, false); }
-    if (!projects.length) { retry = startApi; return fail("No projects yet", 'Run "doczi init" inside a project to register it, then try again.', false); }
+    catch (err) { retry = startApi; return fail(tr("error.server"), tr("error.serverText", { message: err.message }), false); }
+    if (!projects.length) { retry = startApi; return fail(tr("error.noProjects"), tr("error.noProjectsText"), false); }
     const params = new URLSearchParams(location.search);
     const wanted = params.get("project") || storage.get("progress-project", null);
     const first = projects.find((p) => p.id === wanted && p.hasProgress) || projects.find((p) => p.hasProgress) || projects[0];
     $("project").innerHTML = projects.map((p) =>
-      `<option value="${esc(p.id)}" ${p.id === first.id ? "selected" : ""}>${esc(p.name)}${p.hasProgress ? "" : " (no progress file)"}</option>`).join("");
+      `<option value="${esc(p.id)}" ${p.id === first.id ? "selected" : ""}>${esc(p.hasProgress ? p.name : tr("project.noProgress", { name: p.name }))}</option>`).join("");
     $("project-picker").hidden = false;
     $("project").onchange = () => loadProject($("project").value, true);
     loadProject(first.id, true, true);
@@ -108,15 +120,15 @@
     storage.set("progress-project", id);
     if (fresh) {
       view.page = null; openTasks.clear(); openMilestones.clear(); docCache.clear();
-      if (!fromUrl) { filters.statuses.clear(); filters.query = ""; $("search").value = ""; }
+      if (!fromUrl) clearFilters();
     }
     if (!$("app").hidden) $("app").setAttribute("aria-busy", "true");
     try { show(await api(`api/projects/${encodeURIComponent(id)}/progress`)); }
     catch (err) {
       retry = () => loadProject(id);
       const name = $("project").selectedOptions[0]?.text || id;
-      if (err.status === 404) fail(`${name} has no progress file yet`, 'Run "doczi init" in the project to create one, then try again.', false);
-      else fail(`Couldn't load ${name}`, `The doczi server didn't answer (${err.message}). Check that it is still running, then try again.`, false);
+      if (err.status === 404) fail(tr("error.noProgressFile", { name }), tr("error.noProgressText"), false);
+      else fail(tr("error.loadProject", { name }), tr("error.loadProjectText", { message: err.message }), false);
     } finally { $("app").removeAttribute("aria-busy"); }
   }
 
@@ -124,15 +136,14 @@
     mode = "file";
     const requested = new URLSearchParams(location.search).get("data") || "";
     dataFile = /^[\w.-]+\.json$/.test(requested) ? requested : "milestones.json";
-    $("how-to-update").innerHTML = `To update, change a step's <code>status</code> in <code>${esc(dataFile)}</code>. Changes made here stay in
-      this browser until you use "Download updated JSON".`;
+    $("how-to-update").innerHTML = trHtml("howToUpdate.file", { file: esc(dataFile) });
     try {
       const res = await fetch(dataFile, { cache: "no-store" });
       if (!res.ok) throw new Error(`${res.status} ${res.statusText}`);
       show(await res.json());
     } catch (err) {
       retry = startFile;
-      fail("The list couldn't be loaded", `Tried to read ${dataFile} (${err.message}).`);
+      fail(tr("error.loadTitle"), tr("error.readFile", { file: dataFile, message: err.message }));
     }
   }
 
@@ -140,7 +151,7 @@
     const file = e.target.files[0];
     if (!file) return;
     try { show(JSON.parse(await file.text())); }
-    catch (err) { fail("That file isn't valid JSON", `${file.name}: ${err.message}`); }
+    catch (err) { fail(tr("error.badJson"), `${file.name}: ${err.message}`); }
   };
   $("retry").onclick = () => { $("load-error").hidden = true; $("loading").hidden = false; retry?.(); };
 
@@ -157,13 +168,13 @@
 
   function check(json) {
     const problems = [];
-    if (!json || !Array.isArray(json.milestones)) return ['The file has no "milestones" list.'];
+    if (!json || !Array.isArray(json.milestones)) return [tr("check.noMilestones")];
     json.milestones.forEach((m, i) => {
-      if (!m.id || !m.name) problems.push(`Milestone ${i + 1} needs an "id" and a "name".`);
+      if (!m.id || !m.name) problems.push(tr("check.milestoneNeeds", { n: i + 1 }));
       if (!Array.isArray(m.tasks)) m.tasks = [];
       m.tasks.forEach((t) => {
         if (!Array.isArray(t.steps)) t.steps = [];
-        t.steps.forEach((s) => { if (!STATUSES.includes(s.status)) problems.push(`"${s.title}" has status "${s.status}".`); });
+        t.steps.forEach((s) => { if (!STATUSES.includes(s.status)) problems.push(tr("check.badStatus", { title: s.title, status: s.status })); });
       });
     });
     return problems;
@@ -200,7 +211,7 @@
         const n = { done: 0, review: 0, doing: 0 };
         statuses.forEach((s) => { counts.steps.total++; counts.steps[s]++; if (s in share) { share[s] += WORTH[s] / statuses.length; n[s]++; } });
         const status = derive(statuses, text(t.blocked));
-        const reasons = [text(t.blocked), ...t.steps.filter((s) => statusOf(s) === "blocked").map((s) => `${s.title}: ${text(reasonOf(s)) || "no reason given"}`)].filter(Boolean);
+        const reasons = [text(t.blocked), ...t.steps.filter((s) => statusOf(s) === "blocked").map((s) => `${s.title}: ${text(reasonOf(s)) || tr("reason.none")}`)].filter(Boolean);
         counts.tasks.total++; counts.tasks[status]++;
         const questions = Array.isArray(t.questions) ? t.questions : [];
         return { t, mi, ti, status, reasons, share, n, percent: pct(share), done: n.done, questions, open: questions.filter((q) => !text(q.a) || q.by === "agent").length };
@@ -260,7 +271,7 @@
     $("reader-path").textContent = path;
     $("reader-toc").innerHTML = "";
     body.setAttribute("aria-busy", "true");
-    body.innerHTML = '<p class="loading">Loading…</p>';
+    body.innerHTML = `<p class="loading">${esc(tr("doc.loading"))}</p>`;
     try {
       const src = await fetchDoc(path);
       readerDir = path.includes("/") ? path.slice(0, path.lastIndexOf("/") + 1) : "";
@@ -274,8 +285,8 @@
       if (anchor) scrollToAnchor(anchor); else reader.scrollTop = 0;
     } catch (err) {
       body.innerHTML = err.status === 404
-        ? `<p class="error">${esc(path)} wasn't found in the project. Check the path in the progress file.</p>`
-        : `<p class="error">Couldn't open ${esc(path)} (${esc(err.message)}).</p><p><button type="button" class="primary" data-doc-retry>Try again</button></p>`;
+        ? `<p class="error">${esc(tr("doc.notFound", { path }))}</p>`
+        : `<p class="error">${esc(tr("doc.error", { path, message: err.message }))}</p><p><button type="button" class="primary" data-doc-retry>${esc(tr("retry"))}</button></p>`;
     } finally { body.removeAttribute("aria-busy"); }
   }
   function scrollToAnchor(id) {
@@ -293,7 +304,18 @@
   const filters = {
     statuses: new Set((initial.get("status") || "").split(",").filter((s) => STATUSES.includes(s))),
     query: (initial.get("q") || "").trim().toLowerCase(),
+    types: new Set((initial.get("type") || "").split(",").filter((t) => TYPES.includes(t))),
+    tags: new Set((initial.get("tags") || "").split(",").filter(Boolean)),
   };
+  const isFiltering = () => filters.statuses.size > 0 || Boolean(filters.query) || filters.types.size > 0 || filters.tags.size > 0;
+  function clearFilters() {
+    filters.statuses.clear(); filters.types.clear(); filters.tags.clear();
+    filters.query = ""; $("search").value = "";
+  }
+  // A task passes the type and tag filters when it has one of the chosen types (if any) and one
+  // of the chosen tags (if any).
+  const labelsMatch = (t) => (!filters.types.size || filters.types.has(typeOf(t)))
+    && (!filters.tags.size || tagsOf(t).some((x) => filters.tags.has(x)));
   $("search").value = initial.get("q") || "";
   const openMilestones = new Map(); // mi → bool
   const openTasks = new Map();      // "mi.ti" → bool
@@ -307,6 +329,8 @@
     if (mode === "file" && dataFile !== "milestones.json") p.set("data", dataFile);
     if (filters.statuses.size) p.set("status", [...filters.statuses].join(","));
     if (filters.query) p.set("q", $("search").value.trim());
+    if (filters.types.size) p.set("type", [...filters.types].join(","));
+    if (filters.tags.size) p.set("tags", [...filters.tags].join(","));
     const qs = p.toString();
     history.replaceState(null, "", `${location.pathname}${qs ? "?" + qs : ""}${hash || ""}`);
   }
@@ -314,7 +338,7 @@
   // ---------------------------------------------------------------- rendering
   function show(json) {
     const problems = check(json);
-    if (problems.length) return fail("The progress file has problems", problems.slice(0, 5).join(" "));
+    if (problems.length) return fail(tr("error.problems"), problems.slice(0, 5).join(" "));
     data = json;
     data.milestones.forEach((m, mi) => m.tasks.forEach((t, ti) => t.steps.forEach((s) => {
       Object.defineProperty(s, "key", { value: stepKey(mi, ti, s), enumerable: false, configurable: true });
@@ -332,11 +356,11 @@
       storage.set(ticksKey, local);
     } else local = {};
     collectLinked();
-    document.title = data.title || "Project progress";
-    $("title").textContent = data.title || "Project progress";
+    document.title = data.title || tr("page.title");
+    $("title").textContent = data.title || tr("page.title");
     const when = data.updated ? new Date(data.updated + "T00:00:00") : null;
     $("updated").textContent = [
-      when && !isNaN(when) ? "Updated " + when.toLocaleDateString(undefined, { day: "numeric", month: "long", year: "numeric" }) + "." : "",
+      when && !isNaN(when) ? tr("updated", { date: i18n.date(when) }) : "",
       text(data.subtitle),
     ].join(" ").trim();
     const projectDocs = docEntries(data.docs);
@@ -353,22 +377,23 @@
 
   const barHtml = (share, cls, name, n) => {
     const p = pct(share);
-    const parts = n ? [n.done && `${n.done} done`, n.review && `${n.review} waiting for your check`, n.doing && `${n.doing} in progress`].filter(Boolean) : [];
-    return `<div class="bar ${cls}" role="progressbar" aria-valuemin="0" aria-valuemax="100" aria-valuenow="${p}" aria-label="${esc(name)} progress"` +
-      ` aria-valuetext="${p}%${parts.length ? ": " + esc(parts.join(", ")) : ""}">` +
+    const parts = n ? ["done", "review", "doing"].filter((k) => n[k]).map((k) => tr(`bar.${k}`, { count: n[k] })) : [];
+    return `<div class="bar ${cls}" role="progressbar" aria-valuemin="0" aria-valuemax="100" aria-valuenow="${p}" aria-label="${esc(tr("bar.aria", { name }))}"` +
+      ` aria-valuetext="${esc(i18n.percent(p))}${parts.length ? ": " + esc(i18n.list(parts)) : ""}">` +
       // Only segments with a share, so the gap between segments never shows on an empty one.
       ["done", "review", "doing"].filter((k) => share[k] > 0).map((k) => `<i class="${k}" data-w="${share[k] * 100}"></i>`).join("") + "</div>";
   };
   // Widths are applied after rendering: the page's CSP forbids inline style attributes.
   const paint = (root) => root.querySelectorAll("[data-w]").forEach((el) => { el.style.width = el.dataset.w + "%"; });
 
-  const badge = (status) => `<span class="badge ${status}"><span class="dot ${status}" aria-hidden="true"></span>${esc(LABELS[status])}</span>`;
+  const badge = (status) => `<span class="badge ${status}"><span class="dot ${status}" aria-hidden="true"></span>${esc(statusLabel(status))}</span>`;
   let popSeq = 0;
+  // what: "milestone", "task" or "step".
   const info = (reasons, what) => {
     if (!reasons.length) return "";
     const id = `pop-${++popSeq}`;
-    return `<span class="info"><button type="button" aria-label="Why is this ${what} blocked?" aria-expanded="false" aria-controls="${id}" aria-describedby="${id}">?</button>` +
-      `<span class="pop" id="${id}"><strong>Blocked because</strong><ul>${reasons.map((r) => `<li>${esc(r)}</li>`).join("")}</ul></span></span>`;
+    return `<span class="info"><button type="button" aria-label="${esc(tr(`why.${what}`))}" aria-expanded="false" aria-controls="${id}" aria-describedby="${id}">?</button>` +
+      `<span class="pop" id="${id}"><strong>${esc(tr("blockedBecause"))}</strong><ul>${reasons.map((r) => `<li>${esc(r)}</li>`).join("")}</ul></span></span>`;
   };
 
   function matchesQuery(m, t) {
@@ -376,22 +401,24 @@
     if (!q) return { task: true, steps: new Set() };
     const has = (v) => String(v || "").toLowerCase().includes(q);
     const steps = new Set(t.steps.map((s, si) => (has(s.title) || has(reasonOf(s)) ? si : -1)).filter((x) => x >= 0));
-    const task = has(t.name) || has(m.name) || has(m.id) || steps.size > 0 || (t.questions || []).some((x) => has(x.q) || has(x.a)) || has(t.note);
+    const task = has(t.name) || has(m.name) || has(m.id) || steps.size > 0 || (t.questions || []).some((x) => has(x.q) || has(x.a)) || has(t.note)
+      || has(typeOf(t) && typeLabel(typeOf(t))) || tagsOf(t).some((x) => has(x) || has("#" + x));
     return { task, steps };
   }
 
   // A stable description of what has focus, so a rebuild can put focus back.
   function focusMemo() {
     const a = document.activeElement;
-    if (!a || a === document.body || !container.contains(a) && !$("legend").contains(a) && !$("pager").contains(a) && !$("attention").contains(a)) return null;
-    for (const attr of ["data-step", "data-filter", "data-page", "data-menu", "data-toggle"]) {
+    if (!a || a === document.body || !container.contains(a) && !$("legend").contains(a) && !$("labels-filter").contains(a) && !$("pager").contains(a) && !$("attention").contains(a)) return null;
+    for (const attr of ["data-step", "data-filter", "data-filter-type", "data-filter-tag", "data-page", "data-menu", "data-toggle"]) {
       if (a.hasAttribute(attr)) return { sel: `[${attr}="${CSS.escape(a.getAttribute(attr))}"]`, task: a.closest(".task")?.id, ms: a.closest("section.ms")?.id };
     }
     return { sel: null, task: a.closest(".task")?.id, ms: a.closest("section.ms")?.id };
   }
   function restoreFocus(memo) {
     if (!memo) return;
-    const target = (memo.sel && document.querySelector(memo.sel))
+    // The same tag can be in the overview and in several tasks: look in the task first.
+    const target = (memo.sel && ((memo.task && document.querySelector(`#${CSS.escape(memo.task)} ${memo.sel}`)) || document.querySelector(memo.sel)))
       || (memo.task && document.querySelector(`#${CSS.escape(memo.task)} [data-toggle]`))
       || (memo.ms && document.querySelector(`#${CSS.escape(memo.ms)} [data-toggle]`));
     target?.focus({ preventScroll: true });
@@ -405,28 +432,43 @@
     const c = s.counts;
 
     // Whole project
-    $("total-pct").textContent = s.percent + "%";
+    $("total-pct").textContent = i18n.percent(s.percent);
     const total = document.createElement("div");
-    total.innerHTML = barHtml(s.share, "thick", "Whole project", c.steps);
+    total.innerHTML = barHtml(s.share, "thick", tr("overview.bar"), c.steps);
     total.firstChild.id = "total-bar";
     $("total-bar").replaceWith(total.firstChild);
     const openQs = s.milestones.reduce((a, x) => a + x.tasks.reduce((b, t) => b + t.open, 0), 0);
     $("total-stats").innerHTML = c.milestones.total
-      ? `${c.steps.done} of ${c.steps.total} steps done · ${c.milestones.done} of ${c.milestones.total} milestones complete` +
-        (s.current ? ` · now on <button class="link" data-jump="m-${s.current.mi}">${esc(s.current.m.id)} ${esc(s.current.m.name)}</button>` : "") +
-        (openQs ? ` · <button class="link" data-jump="attention">${openQs} open question${openQs === 1 ? "" : "s"}</button>` : "")
-      : "No milestones yet. Add one to the progress file, or ask your agent to plan the project.";
+      ? [
+        esc(tr("stats.steps", { done: c.steps.done, total: c.steps.total })),
+        esc(tr("stats.milestones", { done: c.milestones.done, total: c.milestones.total })),
+        s.current && trHtml("stats.nowOn", { link: `<button class="link" data-jump="m-${s.current.mi}"><bdi>${esc(s.current.m.id)} ${esc(s.current.m.name)}</bdi></button>` }),
+        openQs && `<button class="link" data-jump="attention">${esc(tr("stats.openQuestions", { count: openQs }))}</button>`,
+      ].filter(Boolean).join(" · ")
+      : esc(tr("stats.empty"));
 
     // Tasks by status (the legend is the accessible version of the bar)
     $("status-bar").innerHTML = STATUSES.filter((k) => c.tasks[k]).map((k) => `<i class="${k}" data-w="${(c.tasks[k] / c.tasks.total) * 100}"></i>`).join("");
     $("legend").innerHTML = STATUSES.map((k) =>
-      `<li><button type="button" data-filter="${k}" aria-pressed="${filters.statuses.has(k)}"><span class="dot ${k}" aria-hidden="true"></span>${esc(LABELS[k])} <span class="count">(${c.tasks[k]})</span></button></li>`).join("");
+      `<li><button type="button" data-filter="${k}" aria-pressed="${filters.statuses.has(k)}"><span class="dot ${k}" aria-hidden="true"></span>${esc(statusLabel(k))} <span class="count">(${i18n.num(c.tasks[k])})</span></button></li>`).join("");
     $("clear-filter").hidden = !filters.statuses.size;
+
+    // Types and tags in use, as filter buttons (hidden when no task has any).
+    const typeCount = {}, tagCount = new Map();
+    for (const ms of s.milestones) for (const x of ms.tasks) {
+      if (typeOf(x.t)) typeCount[typeOf(x.t)] = (typeCount[typeOf(x.t)] || 0) + 1;
+      for (const tag of tagsOf(x.t)) tagCount.set(tag, (tagCount.get(tag) || 0) + 1);
+    }
+    $("type-legend").innerHTML = TYPES.filter((k) => typeCount[k]).map((k) =>
+      `<li><button type="button" data-filter-type="${k}" aria-pressed="${filters.types.has(k)}"><span class="type-mark ${k}" aria-hidden="true"></span>${esc(typeLabel(k))} <span class="count">(${i18n.num(typeCount[k])})</span></button></li>`).join("");
+    $("tag-legend").innerHTML = [...tagCount].sort((a, b) => b[1] - a[1] || a[0].localeCompare(b[0])).map(([k, n]) =>
+      `<li><button type="button" class="tag" data-filter-tag="${esc(k)}" aria-pressed="${filters.tags.has(k)}"><bdi>#${esc(k)}</bdi> <span class="count">(${i18n.num(n)})</span></button></li>`).join("");
+    $("labels-filter").hidden = !Object.keys(typeCount).length && !tagCount.size;
 
     renderAttention(s);
 
     // Milestones
-    const filtering = filters.statuses.size > 0 || Boolean(filters.query);
+    const filtering = isFiltering();
     const hideDone = $("hide-done").checked;
     const pool = hideDone && !filtering ? s.milestones.filter((x) => x.status !== "done") : s.milestones;
     const pages = Math.max(1, Math.ceil(pool.length / view.perPage));
@@ -440,7 +482,7 @@
       const m = ms.m;
       const tasks = ms.tasks.map((x) => {
         const q = matchesQuery(m, x.t);
-        const hidden = !q.task || (filters.statuses.size && !filters.statuses.has(x.status));
+        const hidden = !q.task || (filters.statuses.size && !filters.statuses.has(x.status)) || !labelsMatch(x.t);
         if (!hidden) visibleTasks++;
         return { x, q, hidden };
       });
@@ -452,33 +494,45 @@
             <h2 class="ms-title" id="mt-${ms.mi}"><button type="button" class="toggle" data-toggle="m-${ms.mi}" aria-expanded="${open}" aria-controls="mb-${ms.mi}"><span class="chev" aria-hidden="true">▸</span>${esc(m.id)} ${esc(m.name)}</button></h2>
             ${badge(ms.status)}${info(ms.reasons, "milestone")}
           </div>
-          <span class="ms-meta">${ms.percent}%${m.when ? " · " + esc(m.when) : ""}</span>
+          <span class="ms-meta">${esc(i18n.percent(ms.percent))}${m.when ? " · " + esc(m.when) : ""}</span>
         </div>
         ${barHtml(ms.share, "", `${m.id} ${m.name}`)}
-        ${text(m.exit) ? `<p class="exit">Done when: ${esc(m.exit)}</p>` : ""}
+        ${text(m.exit) ? `<p class="exit">${trHtml("ms.doneWhen", { exit: `<bdi>${esc(m.exit)}</bdi>` })}</p>` : ""}
         <div class="ms-body" id="mb-${ms.mi}" ${open ? "" : "hidden"}>
-          ${chips(m.docs, `${m.id} documents`)}
-          ${tasks.length ? tasks.map((t) => renderTask(ms, t.x, t.q, t.hidden)).join("") : '<p class="empty">No tasks yet.</p>'}
+          ${chips(m.docs, tr("docs.of", { name: m.id }))}
+          ${tasks.length ? tasks.map((t) => renderTask(ms, t.x, t.q, t.hidden)).join("") : `<p class="empty">${esc(tr("empty.tasks"))}</p>`}
         </div>
       </section>`;
     }).join("");
     container.innerHTML = html || (hideDone && s.milestones.length
-      ? '<p class="empty">Every milestone on this page is finished. Untick "Hide finished" to see them.</p>'
-      : c.milestones.total ? "" : '<p class="empty">Nothing to show yet.</p>');
+      ? `<p class="empty">${esc(tr("empty.allFinished"))}</p>`
+      : c.milestones.total ? "" : `<p class="empty">${esc(tr("empty.nothing"))}</p>`);
     paint(document);
 
     $("filter-note").hidden = !filtering;
     if (filtering) {
+      // Each part is plain text here, escaped once when the note is built.
+      const anyOf = (items) => i18n.list(items, "disjunction");
       const parts = [];
-      if (filters.query) parts.push(`matching “${esc($("search").value.trim())}”`);
-      if (filters.statuses.size) parts.push(`with status ${[...filters.statuses].map((k) => esc(LABELS[k])).join(" or ")}`);
-      $("filter-note").innerHTML = `Showing ${visibleTasks} task${visibleTasks === 1 ? "" : "s"} ${parts.join(" and ")}. <button class="link" data-clear>Clear</button>`;
+      if (filters.query) parts.push(tr("filter.matching", { query: $("search").value.trim() }));
+      if (filters.statuses.size) parts.push(tr("filter.withStatus", { list: anyOf([...filters.statuses].map(statusLabel)) }));
+      if (filters.types.size) parts.push(tr("filter.ofType", { list: anyOf([...filters.types].map(typeLabel)) }));
+      if (filters.tags.size) parts.push(tr("filter.tagged", { list: anyOf([...filters.tags].map((k) => "#" + k)) }));
+      $("filter-note").innerHTML = `${trHtml("filter.showing", { count: visibleTasks, parts: esc(i18n.list(parts)) })} <button class="link" data-clear>${esc(tr("filter.clear"))}</button>`;
     }
 
     const changes = Object.keys(local).length;
     $("notice").classList.toggle("show", mode === "file" && changes > 0);
-    $("notice-text").textContent = `You changed ${changes} step${changes === 1 ? "" : "s"} in this browser. ${dataFile} itself hasn't changed yet.`;
+    $("notice-text").textContent = tr("notice.changed", { count: changes, file: dataFile });
     restoreFocus(memo);
+  }
+
+  // A task's type and tags; tags are buttons that filter by themselves.
+  function labelsHtml(t) {
+    const type = typeOf(t), tags = tagsOf(t);
+    if (!type && !tags.length) return "";
+    return `<span class="labels">${type ? `<span class="type-badge"><span class="type-mark ${type}" aria-hidden="true"></span>${esc(typeLabel(type))}</span>` : ""}` +
+      tags.map((k) => `<button type="button" class="tag" data-filter-tag="${esc(k)}" aria-pressed="${filters.tags.has(k)}" aria-label="${esc(tr("tag.show", { tag: k }))}"><bdi>#${esc(k)}</bdi></button>`).join("") + "</span>";
   }
 
   function renderTask(ms, x, q, hidden) {
@@ -486,30 +540,32 @@
     const defaultOpen = ["doing", "review", "blocked"].includes(x.status) || x.open > 0;
     const open = q.steps.size > 0 || (filters.query && q.task) || (openTasks.has(key) ? openTasks.get(key) : defaultOpen);
     const qBadge = x.questions.length
-      ? `<span class="badge q ${x.open ? "open" : ""}"><span class="visually-hidden">Questions: </span><span aria-hidden="true">?</span> ${x.open ? `${x.open} open` : x.questions.length}</span>` : "";
+      ? `<span class="badge q ${x.open ? "open" : ""}"><span class="visually-hidden">${esc(tr("questions.label"))} </span><span aria-hidden="true">?</span> ${esc(x.open ? tr("questions.open", { count: x.open }) : i18n.num(x.questions.length))}</span>` : "";
     const steps = t.steps.map((st, si) => {
       const status = statusOf(st), reason = reasonOf(st), pos = `${ms.mi}.${x.ti}.${si}`;
       return `<li class="s-${status} ${q.steps.has(si) ? "match" : ""}">
         <input type="checkbox" data-step="${pos}" ${status === "done" ? "checked" : ""} aria-label="${esc(st.title)}">
-        <span class="step-text"><span class="step-title">${esc(st.title)}</span>${status !== "done" && status !== "todo" ? badge(status) : ""}${status === "blocked" ? info([text(reason) || "No reason given"], "step") : ""}</span>
+        <span class="step-text"><span class="step-title">${esc(st.title)}</span>${status !== "done" && status !== "todo" ? badge(status) : ""}${status === "blocked" ? info([text(reason) || tr("reason.none")], "step") : ""}</span>
         <span class="step-menu">
-          <button type="button" data-menu="${pos}" aria-expanded="false" aria-controls="menu-${pos}" aria-label="Status of ${esc(st.title)}: ${esc(LABELS[status])}. Change">⋯</button>
-          <span class="menu" id="menu-${pos}" role="group" aria-label="Status"></span>
+          <button type="button" data-menu="${pos}" aria-expanded="false" aria-controls="menu-${pos}" aria-label="${esc(tr("step.menu", { title: st.title, status: statusLabel(status) }))}">⋯</button>
+          <span class="menu" id="menu-${pos}" role="group" aria-label="${esc(tr("step.statusGroup"))}"></span>
         </span>
       </li>`;
     }).join("");
-    const qa = x.questions.length ? `<details class="qa-group" ${x.open ? "open" : ""}><summary><span class="chev" aria-hidden="true">▸</span>Questions and answers (${x.questions.length}${x.open ? `, ${x.open} open` : ""})</summary>
+    const qaTitle = x.open ? tr("qa.summaryOpen", { count: x.questions.length, open: x.open }) : tr("qa.summary", { count: x.questions.length });
+    const qa = x.questions.length ? `<details class="qa-group" ${x.open ? "open" : ""}><summary><span class="chev" aria-hidden="true">▸</span>${esc(qaTitle)}</summary>
       ${x.questions.map((qq, qi) => {
         const answered = Boolean(text(qq.a)), byAgent = answered && qq.by === "agent", pending = !answered || byAgent;
-        const form = (value, button) => `<form data-answer="${ms.mi}.${x.ti}.${qi}"><label class="visually-hidden" for="a-${key}-${qi}">Your answer</label>
-              <textarea id="a-${key}-${qi}" name="answer" maxlength="4000" placeholder="Type your answer…" required>${esc(value)}</textarea>
-              <div class="row"><button class="primary" type="submit">${button}</button></div></form>`;
+        const form = (value, button) => `<form data-answer="${ms.mi}.${x.ti}.${qi}"><label class="visually-hidden" for="a-${key}-${qi}">${esc(tr("answer.label"))}</label>
+              <textarea id="a-${key}-${qi}" name="answer" maxlength="4000" placeholder="${esc(tr("answer.placeholder"))}" required>${esc(value)}</textarea>
+              <div class="row"><button class="primary" type="submit">${esc(button)}</button></div></form>`;
         const body = !pending ? `<p class="answer">${esc(qq.a)}</p>`
-          : byAgent ? `<p class="no-answer">Your agent recorded this answer. Confirm it, or change it first.</p>${mode === "api" ? form(qq.a, "Confirm answer") : `<p class="answer">${esc(qq.a)}</p>`}`
-          : mode === "api" ? form("", "Save answer")
-          : '<p class="no-answer">No answer yet. Answer it in the JSON file or ask your agent to record it.</p>';
+          : byAgent ? `<p class="no-answer">${esc(tr("answer.agent"))}</p>${mode === "api" ? form(qq.a, tr("answer.confirm")) : `<p class="answer">${esc(qq.a)}</p>`}`
+          : mode === "api" ? form("", tr("answer.save"))
+          : `<p class="no-answer">${esc(tr("answer.none"))}</p>`;
+        const badgeText = !pending ? "" : byAgent ? tr("answer.badgeConfirm") : tr("answer.badgeNeeds");
         return `<details class="qa" ${pending ? "open" : ""}>
-        <summary><span class="q-mark" aria-hidden="true">Q</span><span>${esc(qq.q)}</span>${!pending ? "" : byAgent ? '<span class="badge review">Confirm the agent\'s answer</span>' : '<span class="badge review">Needs your answer</span>'}</summary>
+        <summary><span class="q-mark" aria-hidden="true">${esc(tr("q.mark"))}</span><span>${esc(qq.q)}</span>${badgeText ? `<span class="badge review">${esc(badgeText)}</span>` : ""}</summary>
         <div class="qa-body">${body}</div>
       </details>`;
       }).join("")}</details>` : "";
@@ -517,14 +573,14 @@
       <div class="task-head">
         <div class="title-row">
           <h3 class="task-title"><button type="button" class="toggle" data-toggle="t-${key}" aria-expanded="${Boolean(open)}" aria-controls="tb-${key}"><span class="chev" aria-hidden="true">▸</span><span class="label">${esc(t.name)}</span></button></h3>
-          ${badge(x.status)}${info(x.reasons, "task")}${qBadge}
+          ${badge(x.status)}${info(x.reasons, "task")}${qBadge}${labelsHtml(t)}
         </div>
-        <span class="task-meta">${x.done}/${t.steps.length} · ${x.percent}%</span>
+        <span class="task-meta">${esc(i18n.num(x.done))}/${esc(i18n.num(t.steps.length))} · ${esc(i18n.percent(x.percent))}</span>
       </div>
-      ${barHtml(x.share, "task", t.name, x.n)}
+      ${barHtml(x.share, "task-bar", t.name, x.n)}
       <div class="task-body" id="tb-${key}" ${open ? "" : "hidden"}>
-        ${chips(t.docs, `${t.name} documents`)}
-        ${t.steps.length ? `<ul class="steps">${steps}</ul>` : '<p class="empty">No steps yet.</p>'}
+        ${chips(t.docs, tr("docs.of", { name: t.name }))}
+        ${t.steps.length ? `<ul class="steps">${steps}</ul>` : `<p class="empty">${esc(tr("empty.steps"))}</p>`}
         ${text(t.note) ? `<p class="note">${esc(t.note)}</p>` : ""}
         ${qa}
       </div>
@@ -540,18 +596,18 @@
         const where = `${esc(ms.m.id)} › ${esc(x.t.name)}`;
         if (x.status === "blocked") blocked.push(`<li><a href="#t-${key}" data-jump="t-${key}">${where}</a> <span class="why">— ${esc(x.reasons.join("; "))}</span></li>`);
         x.t.steps.forEach((st) => { if (statusOf(st) === "review") review.push(`<li><a href="#t-${key}" data-jump="t-${key}">${where} › ${esc(st.title)}</a></li>`); });
-        x.questions.forEach((qq) => { if (!text(qq.a) || qq.by === "agent") questions.push(`<li><a href="#t-${key}" data-jump="t-${key}">${where}</a>: ${esc(qq.q)}${text(qq.a) ? " <span class=\"why\">(confirm the agent's answer)</span>" : ""}</li>`); });
+        x.questions.forEach((qq) => { if (!text(qq.a) || qq.by === "agent") questions.push(`<li><a href="#t-${key}" data-jump="t-${key}">${where}</a>: ${esc(qq.q)}${text(qq.a) ? ` <span class="why">${esc(tr("attention.confirmAgent"))}</span>` : ""}</li>`); });
       }
     }
     const state = attentionState();
     const group = (key, title, status, items) => items.length
-      ? `<details class="att-group" data-group="${key}" ${state.closed[key] ? "" : "open"}><summary><span class="chev" aria-hidden="true">▸</span><span class="dot ${status}" aria-hidden="true"></span>${title} (${items.length})</summary><ul>${items.slice(0, 8).join("")}${items.length > 8
-        ? `<li><button class="link" data-filter-only="${status}">Show all ${items.length}</button></li>` : ""}</ul></details>` : "";
-    const html = group("blocked", "Blocked", "blocked", blocked) + group("review", "Waiting for your check", "review", review) + group("questions", "Questions for you", "review", questions);
+      ? `<details class="att-group" data-group="${key}" ${state.closed[key] ? "" : "open"}><summary><span class="chev" aria-hidden="true">▸</span><span class="dot ${status}" aria-hidden="true"></span>${esc(title)} (${esc(i18n.num(items.length))})</summary><ul>${items.slice(0, 8).join("")}${items.length > 8
+        ? `<li><button class="link" data-filter-only="${status}">${esc(tr("attention.showAll", { count: items.length }))}</button></li>` : ""}</ul></details>` : "";
+    const html = group("blocked", statusLabel("blocked"), "blocked", blocked) + group("review", statusLabel("review"), "review", review) + group("questions", tr("attention.questions"), "review", questions);
     const total = blocked.length + review.length + questions.length;
     $("attention-body").innerHTML = html;
-    $("attention-count").textContent = total ? `(${total})` : "";
-    $("attention-show-count").textContent = total ? `(${total})` : "";
+    $("attention-count").textContent = total ? `(${i18n.num(total)})` : "";
+    $("attention-show-count").textContent = total ? `(${i18n.num(total)})` : "";
     attentionHasItems = Boolean(html);
     applyAttention();
   }
@@ -586,7 +642,7 @@
   }, true);
 
   function renderPager(pool, pages, filtering) {
-    $("show-all").textContent = view.all ? "Show in pages" : "Show all";
+    $("show-all").textContent = view.all ? tr("toolbar.showPages") : tr("toolbar.showAll");
     $("show-all").setAttribute("aria-pressed", String(view.all));
     $("per-page").value = String(view.perPage);
     $("per-page").disabled = view.all || filtering;
@@ -597,10 +653,10 @@
       const part = pool.slice(i * view.perPage, (i + 1) * view.perPage);
       return esc(part.length === 1 ? part[0].m.id : part[0].m.id + "–" + part[part.length - 1].m.id);
     };
-    let html = `<button data-page="${view.page - 1}" ${view.page === 0 ? "disabled" : ""} aria-label="Previous page">‹ Previous</button>`;
+    let html = `<button data-page="${view.page - 1}" ${view.page === 0 ? "disabled" : ""} aria-label="${esc(tr("pager.previousLabel"))}">${esc(tr("pager.previous"))}</button>`;
     for (let i = 0; i < pages; i++) html += `<button data-page="${i}" ${i === view.page ? 'aria-current="page"' : ""}>${label(i)}</button>`;
-    html += `<button data-page="${view.page + 1}" ${view.page === pages - 1 ? "disabled" : ""} aria-label="Next page">Next ›</button>`;
-    html += `<span class="info-text">Page ${view.page + 1} of ${pages}</span>`;
+    html += `<button data-page="${view.page + 1}" ${view.page === pages - 1 ? "disabled" : ""} aria-label="${esc(tr("pager.nextLabel"))}">${esc(tr("pager.next"))}</button>`;
+    html += `<span class="info-text">${esc(tr("pager.page", { page: view.page + 1, pages }))}</span>`;
     pager.innerHTML = html;
   }
 
@@ -618,9 +674,9 @@
     openMilestones.set(mi, true);
     if (m[3] !== undefined) openTasks.set(`${mi}.${m[3]}`, true);
     if (!document.getElementById(id) || document.getElementById(id).classList.contains("filtered-out")) {
-      if (filters.statuses.size || filters.query) {
-        filters.statuses.clear(); filters.query = ""; $("search").value = "";
-        toast("Cleared the search and filters to show it.");
+      if (isFiltering()) {
+        clearFilters();
+        toast(tr("toast.cleared"));
       }
       if ($("hide-done").checked && summary.milestones[mi].status === "done") { $("hide-done").checked = false; applyHide(); }
       if (!view.all) {
@@ -659,7 +715,7 @@
       else local[step.key] = status === "blocked" ? { status, reason } : { status };
       storage.set(ticksKey, local);
       render();
-      return toast(`${step.title}: ${LABELS[status]}`, { undo });
+      return toast(tr("toast.status", { title: step.title, status: statusLabel(status) }), { undo });
     }
     const li = container.querySelector(`[data-step="${pos}"]`)?.closest("li");
     li?.classList.add("saving");
@@ -668,9 +724,9 @@
         method: "PATCH",
         body: JSON.stringify({ milestone: mi, task: ti, step: si, title: step.title, status, ...(status === "blocked" ? { reason } : {}) }),
       }));
-      toast(`${step.title}: ${LABELS[status]}`, { undo });
+      toast(tr("toast.status", { title: step.title, status: statusLabel(status) }), { undo });
     } catch (err) {
-      toast(err.status === 409 ? "The list changed meanwhile; showing the latest version." : `Not saved: ${err.message}`, { alert: err.status !== 409 });
+      toast(err.status === 409 ? tr("toast.conflict") : tr("toast.notSaved", { message: err.message }), { alert: err.status !== 409 });
       loadProject(projectId);
     }
   }
@@ -683,10 +739,10 @@
         method: "PATCH",
         body: JSON.stringify({ milestone: mi, task: ti, question: qi, q: q.q, answer }),
       }));
-      toast("Answer saved.");
+      toast(tr("toast.answerSaved"));
       $(`t-${mi}.${ti}`)?.querySelector("[data-toggle]")?.focus({ preventScroll: true });
     } catch (err) {
-      toast(err.status === 409 ? "The list changed meanwhile; showing the latest version." : `Not saved: ${err.message}`, { alert: err.status !== 409 });
+      toast(err.status === 409 ? tr("toast.conflict") : tr("toast.notSaved", { message: err.message }), { alert: err.status !== 409 });
       loadProject(projectId);
     }
   }
@@ -712,7 +768,7 @@
     const { step } = stepAt(btn.dataset.menu);
     const current = statusOf(step);
     wrap.querySelector(".menu").innerHTML = STATUSES.map((k) =>
-      `<button type="button" class="opt" aria-pressed="${k === current}" data-set="${btn.dataset.menu}" data-status="${k}"><span class="dot ${k}" aria-hidden="true"></span>${esc(LABELS[k])}</button>`).join("");
+      `<button type="button" class="opt" aria-pressed="${k === current}" data-set="${btn.dataset.menu}" data-status="${k}"><span class="dot ${k}" aria-hidden="true"></span>${esc(statusLabel(k))}</button>`).join("");
     wrap.querySelector('.opt[aria-pressed="true"]')?.focus();
   }
 
@@ -721,9 +777,9 @@
     const pos = opt.dataset.set;
     const { step } = stepAt(pos);
     menu.innerHTML = `<form data-reason="${pos}">
-      <label for="r-${pos}">What is it waiting for?</label>
+      <label for="r-${pos}">${esc(tr("reason.question"))}</label>
       <textarea id="r-${pos}" name="reason" maxlength="2000" required>${esc(text(reasonOf(step)))}</textarea>
-      <div class="row"><button type="button" data-cancel>Cancel</button><button class="primary" type="submit">Mark blocked</button></div></form>`;
+      <div class="row"><button type="button" data-cancel>${esc(tr("reason.cancel"))}</button><button class="primary" type="submit">${esc(tr("reason.submit"))}</button></div></form>`;
     menu.querySelector("textarea").focus();
   }
 
@@ -750,8 +806,14 @@
       if (el.dataset.filterOnly) container.scrollIntoView({ behavior: motion(), block: "start" });
       return;
     }
+    if (el.dataset.filterType !== undefined || el.dataset.filterTag !== undefined) {
+      const [set, k] = el.dataset.filterType !== undefined ? [filters.types, el.dataset.filterType] : [filters.tags, el.dataset.filterTag];
+      if (set.has(k)) set.delete(k); else set.add(k);
+      render(); syncUrl("");
+      return;
+    }
     if (el.id === "clear-filter" || el.hasAttribute("data-clear")) {
-      filters.statuses.clear(); filters.query = ""; $("search").value = "";
+      clearFilters();
       render(); syncUrl("");
       return $("search").focus();
     }
@@ -855,21 +917,44 @@
       /\{\n\s+"status": ("[a-z]+"),\n\s+"title": ("(?:[^"\\]|\\.)*")(?:,\n\s+"reason": ("(?:[^"\\]|\\.)*"))?\n\s+\}/g,
       (_, st, ti, re) => `{ "status": ${st}, "title": ${ti}${re ? `, "reason": ${re}` : ""} }`) + "\n";
   }
-  $("download").onclick = () => {
-    const url = URL.createObjectURL(new Blob([exportJson()], { type: "application/json" }));
-    const a = Object.assign(document.createElement("a"), { href: url, download: dataFile });
+  function download(content, name, type) {
+    const url = URL.createObjectURL(new Blob([content], { type }));
+    const a = Object.assign(document.createElement("a"), { href: url, download: name });
     a.click();
     setTimeout(() => URL.revokeObjectURL(url), 1000);
+  }
+  $("download").onclick = () => download(exportJson(), dataFile, "application/json");
+
+  // Downloads of the plan as shown here (in file mode, with this browser's changes).
+  function exportStats() {
+    const s = summary || summarize();
+    return {
+      percent: s.percent, stepsDone: s.counts.steps.done, stepsTotal: s.counts.steps.total,
+      milestones: s.milestones.map((ms) => ({ percent: ms.percent, status: ms.status, tasks: ms.tasks.map((x) => ({ percent: x.percent, status: x.status })) })),
+    };
+  }
+  const exportName = (ext) => {
+    const slug = String(data.title || "").toLowerCase().replace(/[^\p{L}\p{N}]+/gu, "-").replace(/^-|-$/g, "").slice(0, 60);
+    return `${slug ? slug + "-" : ""}progress-${new Date().toISOString().slice(0, 10)}.${ext}`;
   };
+  $("export-md").onclick = () => download(window.docziExport.markdown(JSON.parse(exportJson()), exportStats()), exportName("md"), "text/markdown;charset=utf-8");
+  $("export-csv").onclick = () => download(window.docziExport.csv(JSON.parse(exportJson()), exportStats()), exportName("csv"), "text/csv;charset=utf-8");
+  $("export-json").onclick = () => download(exportJson(), exportName("json"), "application/json");
   $("copy").onclick = async () => {
-    try { await navigator.clipboard.writeText(exportJson()); toast("Copied. Paste it over " + dataFile + "."); }
-    catch { toast("Copying isn't allowed here; use Download instead.", { alert: true }); }
+    try { await navigator.clipboard.writeText(exportJson()); toast(tr("toast.copied", { file: dataFile })); }
+    catch { toast(tr("toast.copyBlocked"), { alert: true }); }
   };
   $("discard").onclick = () => {
     const n = Object.keys(local).length;
-    if (!n || !confirm(`Discard ${n} change${n === 1 ? "" : "s"} made in this browser?`)) return;
+    if (!n || !confirm(tr("confirm.discard", { count: n }))) return;
     local = {}; storage.set(ticksKey, local); render();
   };
 
-  start();
+  // Start once the chosen language's strings are in (English is there from the start).
+  i18n.ready.then(() => {
+    i18n.apply();
+    applyTheme();
+    document.title = tr("page.title");
+    start();
+  });
 })();

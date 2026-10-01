@@ -39,6 +39,8 @@ See [ADR 0001](adr/0001-rename-to-doczi.md).
       "tasks": [
         {
           "name": "Repository and tooling",
+          "type": "chore",
+          "tags": ["ci", "tooling"],
           "docs": [{ "title": "Plan", "path": "docs/plans/m0.md" }],
           "questions": [{ "q": "Which CI service?", "a": "GitHub Actions" }, { "q": "Sign images?" }],
           "steps": [
@@ -70,6 +72,15 @@ from their tasks the same way. Percentages are never stored.
 style), must stay inside the project and may not contain `:`. Only `.md`, `.markdown` and `.txt` files open in the
 reader. Schema: `templates/progress/progress.schema.json`.
 
+A task may carry a `type` and `tags`. Neither changes progress.
+
+- `type` is one of `feature`, `bug`, `issue`, `refinement`, `redesign`, `chore`,
+  `docs`, `research` or `security`.
+- `tags` is a list of up to 10 tags. Each tag is lower case, has no spaces, and has up to 30
+  letters (of any script), digits or inner hyphens. A tag appears once per task.
+
+The dashboard filters tasks by both. Every writer keeps them as they are.
+
 ## MCP tools
 
 | Tool | Arguments | Result |
@@ -78,6 +89,8 @@ reader. Schema: `templates/progress/progress.schema.json`.
 | `progress_list` | `project?`, `milestone?` | Every task and step with status and number, plus questions |
 | `progress_set_status` | `project?`, `milestone`, `task`, `step`, `status`, `reason?` | `M0 › Task › Step: todo → doing` |
 | `progress_add_step` | `project?`, `milestone`, `task`, `title`, `status?` | Confirmation |
+| `progress_import` | `project?`, `plan` or `file` (+ `milestone`, `name?`, `bullets?`), `apply?` | Without `apply`, what would be added; with `apply: true`, adds it. Matches existing milestones by id, tasks by name and steps by title; never changes an existing step (a task may gain missing document links). Up to 50 milestones, 500 tasks each, 500 steps per task and 5,000 steps in all; texts up to 300 characters; control and direction characters are removed |
+| `progress_label_task` | `project?`, `milestone`, `task`, `type?` (a type or `none`), `tags?` (replaces), `add?`, `remove?` | `M0 › Task: [bug] #ui #api` |
 | `progress_ask` | `project?`, `milestone`, `task`, `question` | Records a question for the user |
 | `progress_answer` | `project?`, `milestone`, `task`, `question`, `answer` | Records an answer the user gave, marked `"by": "agent"` until the user confirms it in the dashboard |
 | `projects_list` | — | Registered projects |
@@ -163,3 +176,15 @@ whole-project progress and tasks-by-status bars with a filterable legend, a "Nee
 (blocked, waiting for your check, open questions), collapsible milestones and tasks with
 status badges and blocked reasons, a status menu per step, and answers to questions. Every
 change goes through the PATCH endpoints above.
+
+The dashboard filters tasks by type and tag. It downloads the plan as Markdown, CSV or JSON.
+It loads one script for this, `export.js`, which every server serves. `doczi export` writes the
+same three formats.
+
+- **Markdown:** milestones, tasks with type and tags, steps as checkboxes, blocked reasons,
+  questions and document links.
+- **CSV:** one row per step (a task without steps gets one row). The columns are milestone ID,
+  milestone, task, type, tags, task status, task progress, step, step status and reason.
+  - The file is UTF-8 with a byte order mark and CRLF line endings.
+  - A cell that starts with `=`, `+`, `-` or `@` gets a leading `'`, so spreadsheets don't
+    run it as a formula.

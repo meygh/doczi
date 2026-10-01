@@ -6,49 +6,54 @@
 <meta http-equiv="Content-Security-Policy" content="default-src 'self'; img-src 'self' data:; base-uri 'none'; form-action 'none'">
 <title>Project progress</title>
 <script src="theme.js"></script>
+<script src="i18n/en.js"></script>
+<script src="i18n.js"></script>
 <link rel="stylesheet" href="style.css">
 </head>
 <body>
-<a class="skip" href="#milestones">Skip to milestones</a>
+<a class="skip" href="#milestones" data-i18n="skip">Skip to milestones</a>
 
 <header class="topbar">
   <div class="topbar-inner">
     <div class="brand">
-      <h1 id="title">Project progress</h1>
+      <h1 id="title" data-i18n="page.title">Project progress</h1>
       <p class="sub" id="updated"></p>
     </div>
     <div class="topbar-tools">
       <label class="project-picker" id="project-picker" hidden>
-        <span class="visually-hidden">Project</span>
-        <select id="project" aria-label="Project"></select>
+        <span class="visually-hidden" data-i18n="project">Project</span>
+        <select id="project" data-i18n-attr="aria-label:project"></select>
       </label>
       <label class="search">
-        <span class="visually-hidden">Search</span>
-        <input type="search" id="search" placeholder="Search steps, tasks, questions…" autocomplete="off" aria-describedby="search-hint">
+        <span class="visually-hidden" data-i18n="search.label">Search</span>
+        <input type="search" id="search" data-i18n-attr="placeholder:search.placeholder" autocomplete="off" aria-describedby="search-hint">
         <kbd aria-hidden="true">/</kbd>
-        <span class="visually-hidden" id="search-hint">Press slash from anywhere to jump here.</span>
+        <span class="visually-hidden" id="search-hint" data-i18n="search.hint">Press slash from anywhere to jump here.</span>
       </label>
-      <button id="theme" class="ghost" title="Switch between light, dark and your system setting"></button>
+      <label class="language">
+        <span class="visually-hidden" data-i18n="language.label">Language</span>
+        <select id="language" data-i18n-attr="aria-label:language.label"></select>
+      </label>
+      <button id="theme" class="ghost" data-i18n-attr="title:theme.title"></button>
     </div>
   </div>
 </header>
 
 <main>
-  <nav class="docs-bar" id="project-docs" aria-label="Project documents" hidden></nav>
+  <nav class="docs-bar" id="project-docs" data-i18n-attr="aria-label:docs.project" hidden></nav>
 
   <section class="card skeleton" id="loading" aria-busy="true" aria-live="polite">
-    <p class="visually-hidden">Loading progress…</p>
+    <p class="visually-hidden" data-i18n="loading">Loading progress…</p>
     <div class="sk sk-title"></div><div class="sk sk-bar"></div><div class="sk sk-line"></div>
     <div class="sk sk-bar thin"></div><div class="sk sk-line short"></div>
   </section>
 
   <section class="card load-error" id="load-error" hidden>
-    <h2 id="load-error-title">The list couldn't be loaded</h2>
+    <h2 id="load-error-title" data-i18n="error.loadTitle">The list couldn't be loaded</h2>
     <p id="load-error-text"></p>
-    <p><button id="retry" class="primary" hidden>Try again</button></p>
+    <p><button id="retry" class="primary" hidden data-i18n="retry">Try again</button></p>
     <div id="file-help">
-      <p>Browsers don't let a page read files next to it when it's opened straight from disk.
-        Serve the folder instead (for example with doczi's <code>serve</code> menu), or pick the JSON file:</p>
+      <p data-i18n-html="fileHelp">Browsers don't let a page read files next to it when it's opened straight from disk.</p>
       <input type="file" id="pick" accept=".json,application/json">
     </div>
   </section>
@@ -56,29 +61,39 @@
   <div id="app" hidden>
     <section class="card overview" aria-labelledby="overview-title">
       <div class="overview-head">
-        <h2 id="overview-title">Whole project</h2>
+        <h2 id="overview-title" data-i18n="overview.title">Whole project</h2>
         <span class="big" id="total-pct">0%</span>
       </div>
       <div class="bar thick" id="total-bar"></div>
-      <ul class="bar-key" id="bar-key" aria-label="Bar colours">
-        <li><span class="dot done" aria-hidden="true"></span>Done</li>
-        <li><span class="dot review" aria-hidden="true"></span>Waiting for your check (counts 75%)</li>
-        <li><span class="dot doing" aria-hidden="true"></span>In progress (counts 50%)</li>
+      <ul class="bar-key" id="bar-key" data-i18n-attr="aria-label:barKey.label">
+        <li><span class="dot done" aria-hidden="true"></span><span data-i18n="status.done">Done</span></li>
+        <li><span class="dot review" aria-hidden="true"></span><span data-i18n="barKey.review">Waiting for your check (counts 75%)</span></li>
+        <li><span class="dot doing" aria-hidden="true"></span><span data-i18n="barKey.doing">In progress (counts 50%)</span></li>
       </ul>
       <p class="stats" id="total-stats"></p>
 
       <div class="overview-head small">
-        <h3>Tasks by status</h3>
-        <button class="link" id="clear-filter" hidden>Show all statuses</button>
+        <h3 data-i18n="byStatus">Tasks by status</h3>
+        <button class="link" id="clear-filter" hidden data-i18n="showAllStatuses">Show all statuses</button>
       </div>
       <div class="dist" id="status-bar" aria-hidden="true"></div>
-      <ul class="legend" id="legend" aria-label="Filter tasks by status"></ul>
+      <ul class="legend" id="legend" data-i18n-attr="aria-label:filter.byStatus"></ul>
+      <div class="labels-filter" id="labels-filter" hidden>
+        <h3 class="small" data-i18n="typesAndTags">Types and tags</h3>
+        <ul class="legend" id="type-legend" data-i18n-attr="aria-label:filter.byType"></ul>
+        <ul class="legend" id="tag-legend" data-i18n-attr="aria-label:filter.byTag"></ul>
+      </div>
+      <p class="export-row"><span data-i18n="export.label">Download the plan:</span>
+        <button type="button" class="link" id="export-md" data-i18n="export.md">Markdown</button>
+        <button type="button" class="link" id="export-csv" data-i18n="export.csv">CSV (spreadsheet)</button>
+        <button type="button" class="link" id="export-json" data-i18n="export.json">JSON</button>
+      </p>
     </section>
 
     <section class="card attention" id="attention" hidden aria-labelledby="attention-title">
       <div class="attention-head">
-        <h2 id="attention-title"><button type="button" class="toggle" id="attention-toggle" aria-expanded="true" aria-controls="attention-body"><span class="chev" aria-hidden="true">▸</span><span>Needs you</span> <span class="att-count" id="attention-count"></span></button></h2>
-        <button type="button" class="link" id="attention-hide">Hide</button>
+        <h2 id="attention-title"><button type="button" class="toggle" id="attention-toggle" aria-expanded="true" aria-controls="attention-body"><span class="chev" aria-hidden="true">▸</span><span data-i18n="attention.title">Needs you</span> <span class="att-count" id="attention-count"></span></button></h2>
+        <button type="button" class="link" id="attention-hide" data-i18n="attention.hide">Hide</button>
       </div>
       <div id="attention-body"></div>
     </section>
@@ -86,33 +101,30 @@
     <div class="card notice" id="notice">
       <span id="notice-text"></span>
       <span class="notice-actions">
-        <button id="download">Download updated JSON</button>
-        <button id="copy">Copy JSON</button>
-        <button id="discard">Discard changes in this browser</button>
+        <button id="download" data-i18n="notice.download">Download updated JSON</button>
+        <button id="copy" data-i18n="notice.copy">Copy JSON</button>
+        <button id="discard" data-i18n="notice.discard">Discard changes in this browser</button>
       </span>
     </div>
 
     <div class="toolbar">
-      <button id="expand">Expand all</button>
-      <button id="collapse">Collapse all</button>
-      <label><input type="checkbox" id="hide-done"> Hide finished</label>
-      <button type="button" id="attention-show" aria-pressed="true" hidden>Needs you <span class="att-count" id="attention-show-count"></span></button>
+      <button id="expand" data-i18n="toolbar.expand">Expand all</button>
+      <button id="collapse" data-i18n="toolbar.collapse">Collapse all</button>
+      <label><input type="checkbox" id="hide-done"> <span data-i18n="toolbar.hideFinished">Hide finished</span></label>
+      <button type="button" id="attention-show" aria-pressed="true" hidden><span data-i18n="attention.title">Needs you</span> <span class="att-count" id="attention-show-count"></span></button>
       <span class="spacer"></span>
-      <label>Milestones per page
+      <label><span data-i18n="toolbar.perPage">Milestones per page</span>
         <select id="per-page"><option>1</option><option>2</option><option selected>3</option><option>5</option></select>
       </label>
-      <button id="show-all" aria-pressed="false">Show all</button>
+      <button id="show-all" aria-pressed="false" data-i18n="toolbar.showAll">Show all</button>
     </div>
 
     <p class="filter-note" id="filter-note" aria-live="polite" hidden></p>
     <div id="milestones"></div>
-    <nav class="pager" id="pager" aria-label="Milestone pages"></nav>
+    <nav class="pager" id="pager" data-i18n-attr="aria-label:pager.label"></nav>
 
     <footer>
-      <p>How the numbers work: a step counts fully when done, ¾ while it waits for your check, ½ while in
-        progress, and nothing while blocked or not started. A task is the share of its steps, a milestone the
-        average of its tasks, and the whole project weights each milestone by its <code>weight</code>. Nothing
-        stores a percentage.</p>
+      <p data-i18n-html="footer.numbers">How the numbers work.</p>
       <p id="how-to-update"></p>
     </footer>
   </div>
@@ -121,17 +133,18 @@
 <dialog id="reader" aria-labelledby="reader-title">
   <div class="reader-head">
     <div>
-      <h2 id="reader-title">Document</h2>
+      <h2 id="reader-title" data-i18n="reader.title">Document</h2>
       <p class="sub" id="reader-path"></p>
     </div>
-    <button class="ghost icon" id="reader-close" aria-label="Close document">✕</button>
+    <button class="ghost icon" id="reader-close" data-i18n-attr="aria-label:reader.close">✕</button>
   </div>
-  <nav class="reader-toc" id="reader-toc" aria-label="Contents"></nav>
+  <nav class="reader-toc" id="reader-toc" data-i18n-attr="aria-label:reader.toc"></nav>
   <article class="doc" id="reader-body"></article>
 </dialog>
 
-<div class="toast" id="toast" role="status" aria-live="polite"><span id="toast-text"></span><button type="button" id="toast-undo" hidden>Undo</button></div>
+<div class="toast" id="toast" role="status" aria-live="polite"><span id="toast-text"></span><button type="button" id="toast-undo" hidden data-i18n="toast.undo">Undo</button></div>
 <script src="markdown.js"></script>
+<script src="export.js"></script>
 <script src="app.js"></script>
 </body>
 </html>

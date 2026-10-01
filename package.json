@@ -12,8 +12,8 @@
     "node": ">=20"
   },
   "scripts": {
-    "test": "node --test test/*.test.mjs",
-    "check": "node --test test/*.test.mjs && node cli/doczi.mjs check-ai --self"
+    "test": "node --test",
+    "check": "node --test && node cli/doczi.mjs check-ai --self"
   },
   "files": [
     ".claude-plugin",

@@ -25,6 +25,14 @@ const FILES = {
   "/index.html": ["index.html", "text/html; charset=utf-8"],
   "/app.js": ["app.js", "text/javascript; charset=utf-8"],
   "/markdown.js": ["markdown.js", "text/javascript; charset=utf-8"],
+  "/export.js": ["export.js", "text/javascript; charset=utf-8"],
+  "/i18n.js": ["i18n.js", "text/javascript; charset=utf-8"],
+  "/i18n/en.js": ["i18n/en.js", "text/javascript; charset=utf-8"],
+  "/i18n/fa.js": ["i18n/fa.js", "text/javascript; charset=utf-8"],
+  "/i18n/ar.js": ["i18n/ar.js", "text/javascript; charset=utf-8"],
+  "/i18n/de.js": ["i18n/de.js", "text/javascript; charset=utf-8"],
+  "/i18n/es.js": ["i18n/es.js", "text/javascript; charset=utf-8"],
+  "/i18n/tr.js": ["i18n/tr.js", "text/javascript; charset=utf-8"],
   "/theme.js": ["theme.js", "text/javascript; charset=utf-8"],
   "/style.css": ["style.css", "text/css; charset=utf-8"],
 };
@@ -185,5 +193,5 @@ const server = http.createServer(async (req, res) => {
 server.requestTimeout = 15000;
 
 server.listen(PORT, "127.0.0.1", () => {
-  console.log(`doczi dashboard (Node.js ${process.versions.node}) → http://localhost:${PORT}/   Stop with Ctrl+C.`);
+  console.log(`doczi dashboard (Node.js ${process.versions.node}) at http://localhost:${PORT}/ - stop with Ctrl+C.`);
 });

@@ -138,7 +138,8 @@
             }
           ],
           "steps": [
-            { "status": "done", "title": "Clearer task bars and a Needs you panel that hides and collapses" }
+            { "status": "done", "title": "Clearer task bars and a Needs you panel that hides and collapses" },
+            { "status": "done", "title": "Launcher starts at once with saved or default settings" }
           ]
         },
         {
@@ -150,7 +151,7 @@
             }
           ],
           "steps": [
-            { "status": "todo", "title": "Types and tags in model, schema, servers, CLI, MCP and filters" }
+            { "status": "done", "title": "Types and tags in model, schema, servers, CLI, MCP and filters" }
           ]
         },
         {
@@ -162,8 +163,8 @@
             }
           ],
           "steps": [
-            { "status": "todo", "title": "Export to Markdown, CSV and JSON" },
-            { "status": "todo", "title": "Import tasks from requirement documents" }
+            { "status": "done", "title": "Export to Markdown, CSV and JSON" },
+            { "status": "done", "title": "Import tasks from requirement documents" }
           ]
         },
         {
@@ -175,8 +176,8 @@
             }
           ],
           "steps": [
-            { "status": "todo", "title": "Interface strings, language menu and right-to-left layout" },
-            { "status": "todo", "title": "Persian, German, Arabic, Turkish and Spanish translations" }
+            { "status": "review", "title": "Interface strings, language menu and right-to-left layout" },
+            { "status": "review", "title": "Persian, German, Arabic, Turkish and Spanish translations" }
           ]
         },
         {
