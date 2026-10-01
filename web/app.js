@@ -905,12 +905,29 @@
       /\{\n\s+"status": ("[a-z]+"),\n\s+"title": ("(?:[^"\\]|\\.)*")(?:,\n\s+"reason": ("(?:[^"\\]|\\.)*"))?\n\s+\}/g,
       (_, st, ti, re) => `{ "status": ${st}, "title": ${ti}${re ? `, "reason": ${re}` : ""} }`) + "\n";
   }
-  $("download").onclick = () => {
-    const url = URL.createObjectURL(new Blob([exportJson()], { type: "application/json" }));
-    const a = Object.assign(document.createElement("a"), { href: url, download: dataFile });
+  function download(content, name, type) {
+    const url = URL.createObjectURL(new Blob([content], { type }));
+    const a = Object.assign(document.createElement("a"), { href: url, download: name });
     a.click();
     setTimeout(() => URL.revokeObjectURL(url), 1000);
+  }
+  $("download").onclick = () => download(exportJson(), dataFile, "application/json");
+
+  // Downloads of the plan as shown here (in file mode, with this browser's changes).
+  function exportStats() {
+    const s = summary || summarize();
+    return {
+      percent: s.percent, stepsDone: s.counts.steps.done, stepsTotal: s.counts.steps.total,
+      milestones: s.milestones.map((ms) => ({ percent: ms.percent, status: ms.status, tasks: ms.tasks.map((x) => ({ percent: x.percent, status: x.status })) })),
+    };
+  }
+  const exportName = (ext) => {
+    const slug = String(data.title || "").toLowerCase().replace(/[^\p{L}\p{N}]+/gu, "-").replace(/^-|-$/g, "").slice(0, 60);
+    return `${slug ? slug + "-" : ""}progress-${new Date().toISOString().slice(0, 10)}.${ext}`;
   };
+  $("export-md").onclick = () => download(window.docziExport.markdown(JSON.parse(exportJson()), exportStats()), exportName("md"), "text/markdown;charset=utf-8");
+  $("export-csv").onclick = () => download(window.docziExport.csv(JSON.parse(exportJson()), exportStats()), exportName("csv"), "text/csv;charset=utf-8");
+  $("export-json").onclick = () => download(exportJson(), exportName("json"), "application/json");
   $("copy").onclick = async () => {
     try { await navigator.clipboard.writeText(exportJson()); toast("Copied. Paste it over " + dataFile + "."); }
     catch { toast("Copying isn't allowed here; use Download instead.", { alert: true }); }

@@ -110,6 +110,8 @@ textarea { width: 100%; padding: 8px 10px; resize: vertical; min-height: 64px; }
 .legend button { display: inline-flex; align-items: center; gap: 8px; padding: 5px 10px; border-radius: 99px; font-size: 13px; }
 .legend button[aria-pressed="true"] { background: var(--raised); color: var(--text); border-color: var(--text); }
 .legend .count { font-variant-numeric: tabular-nums; color: var(--muted); }
+.export-row { margin: 14px 0 0; font-size: 13px; color: var(--muted); display: flex; flex-wrap: wrap; gap: 4px 8px; align-items: center; }
+
 /* Task types and tags */
 .labels-filter { margin-top: 14px; }
 .labels-filter h3 { font-size: 13px; color: var(--muted); font-weight: 600; margin: 0; }

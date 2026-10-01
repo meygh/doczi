@@ -59,3 +59,10 @@ test("the dashboard filters by task type and tag, and keeps them in the address"
   assert.match(app, /p\.set\("type"/);
   assert.match(app, /p\.set\("tags"/);
 });
+
+test("the dashboard downloads the plan as Markdown, CSV or JSON, with the shared exporter", () => {
+  for (const id of ["export-md", "export-csv", "export-json"]) assert.match(html, new RegExp(`id="${id}"`));
+  assert.ok(html.indexOf('src="export.js"') > 0 && html.indexOf('src="export.js"') < html.indexOf('src="app.js"'), "export.js loads before app.js");
+  assert.match(app, /docziExport\.markdown\(/);
+  assert.match(app, /docziExport\.csv\(/);
+});

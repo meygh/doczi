@@ -78,6 +78,11 @@
         <ul class="legend" id="type-legend" aria-label="Filter tasks by type"></ul>
         <ul class="legend" id="tag-legend" aria-label="Filter tasks by tag"></ul>
       </div>
+      <p class="export-row">Download the plan:
+        <button type="button" class="link" id="export-md">Markdown</button>
+        <button type="button" class="link" id="export-csv">CSV (spreadsheet)</button>
+        <button type="button" class="link" id="export-json">JSON</button>
+      </p>
     </section>
 
     <section class="card attention" id="attention" hidden aria-labelledby="attention-title">
@@ -137,6 +142,7 @@
 
 <div class="toast" id="toast" role="status" aria-live="polite"><span id="toast-text"></span><button type="button" id="toast-undo" hidden>Undo</button></div>
 <script src="markdown.js"></script>
+<script src="export.js"></script>
 <script src="app.js"></script>
 </body>
 </html>

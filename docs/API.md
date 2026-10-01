@@ -175,3 +175,15 @@ whole-project progress and tasks-by-status bars with a filterable legend, a "Nee
 (blocked, waiting for your check, open questions), collapsible milestones and tasks with
 status badges and blocked reasons, a status menu per step, and answers to questions. Every
 change goes through the PATCH endpoints above.
+
+The dashboard filters tasks by type and tag. It downloads the plan as Markdown, CSV or JSON.
+It loads one script for this, `export.js`, which every server serves. `doczi export` writes the
+same three formats.
+
+- **Markdown:** milestones, tasks with type and tags, steps as checkboxes, blocked reasons,
+  questions and document links.
+- **CSV:** one row per step (a task without steps gets one row). The columns are milestone ID,
+  milestone, task, type, tags, task status, task progress, step, step status and reason.
+  - The file is UTF-8 with a byte order mark and CRLF line endings.
+  - A cell that starts with `=`, `+`, `-` or `@` gets a leading `'`, so spreadsheets don't
+    run it as a formula.

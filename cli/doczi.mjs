@@ -10,11 +10,12 @@ import { CONFIG_FILE, env, home, LEGACY_CONFIG_FILE, legacyHome } from "../lib/n
 import { addQuestion, addStep, answerQuestion, format, labelTask, labelText, parse, setStatus, TASK_TYPES } from "../lib/progress.mjs";
 import { list, register, unregister } from "../lib/registry.mjs";
 import { clean, listText, summaryText } from "../lib/report.mjs";
+import { toCsv, toJson, toMarkdown } from "../lib/export.mjs";
 import { occupied } from "../lib/fsutil.mjs";
 import { assertInside, openProject, readProgress, updateProgress, writeFileAtomic } from "../lib/store.mjs";
 
 const PACKAGE_ROOT = path.resolve(fileURLToPath(new URL("..", import.meta.url)));
-const WEB_FILES = ["index.html", "app.js", "markdown.js", "theme.js", "style.css"];
+const WEB_FILES = ["index.html", "app.js", "markdown.js", "export.js", "theme.js", "style.css"];
 
 const HELP = `doczi — working rules, skills and progress tracking for your projects
 
@@ -37,6 +38,10 @@ Usage: doczi <command> [options]
                              docs, research or security; tags: lower case, no spaces
       ask <milestone> <task> "<question>"
       answer <milestone> <task> <question number or text> "<answer>"
+      --project <id|path>    Another project than the current one
+  export                     Write the plan to a new file (never over an existing one)
+      --format md|csv|json   Default md
+      --out <file>|-         Default <title>-progress-<date>.<format>; - prints it
       --project <id|path>    Another project than the current one
   check-ai [files…]          Find AI tool or vendor mentions (default: all tracked files)
   git-hooks [dir]            Install the commit-msg hook that strips assistant attribution
@@ -176,6 +181,24 @@ function progress(args) {
   say(summaryText(data));
 }
 
+const EXPORTERS = { md: toMarkdown, csv: toCsv, json: toJson };
+
+function exportPlan(args) {
+  const kind = typeof args.flags.format === "string" ? args.flags.format.toLowerCase() : "md";
+  if (!Object.hasOwn(EXPORTERS, kind)) throw new UsageError(`Unknown format "${args.flags.format}"; use md, csv or json.`);
+  const data = readProgress(openProject(args.flags.project));
+  const text = EXPORTERS[kind](data);
+  if (args.flags.out === "-") return process.stdout.write(text);
+  const slug = String(data.title || "").toLowerCase().replace(/[^\p{L}\p{N}]+/gu, "-").replace(/^-|-$/g, "").slice(0, 60);
+  const out = typeof args.flags.out === "string" ? args.flags.out : `${slug ? slug + "-" : ""}progress-${new Date().toISOString().slice(0, 10)}.${kind}`;
+  try { fs.writeFileSync(path.resolve(out), text, { flag: "wx" }); }
+  catch (err) {
+    if (err.code === "EEXIST") throw new UsageError(`${out} already exists; doczi never overwrites. Choose another name with --out.`);
+    throw err;
+  }
+  say(`Wrote ${out}.`);
+}
+
 function checkAi(args) {
   const root = findRoot(process.cwd());
   const config = loadConfig(root);
@@ -293,6 +316,7 @@ try {
   switch (command) {
     case "init": init(parseArgs(rest)); break;
     case "progress": progress(parseArgs(rest)); break;
+    case "export": exportPlan(parseArgs(rest)); break;
     case "check-ai": checkAi(parseArgs(rest)); break;
     case "git-hooks": gitHooks(parseArgs(rest)); break;
     case "migrate": migrate(parseArgs(rest)); break;

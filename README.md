@@ -181,6 +181,8 @@ check or blocked (with a reason), and questions for you land on the task.
 | `doczi progress set M0 "Task" 2 blocked --reason "…"` | Change a step (by name, part of a name, or number) |
 | `doczi progress add M1 "Task" "Step"` | Add a step |
 | `doczi progress ask M1 "Task" "Question?"` · `answer M1 "Task" 1 "Answer"` | Questions and answers |
+| `doczi progress label M1 "Task" --type bug --add ui,api` | Set a task's type and tags (`--type none`, `--remove`, `--tags` replaces) |
+| `doczi export [--format md\|csv\|json] [--out file\|-]` | Write the plan to a new file (never over an existing one), or print it |
 | `doczi projects [add <path> \| remove <id>]` | The dashboard's project list |
 | `doczi serve [--runtime node\|php\|python] [--port N]` | Start the dashboard |
 | `doczi git-hooks` | Install the commit-msg hook that strips assistant attribution |

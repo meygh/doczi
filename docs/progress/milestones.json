@@ -162,7 +162,7 @@
             }
           ],
           "steps": [
-            { "status": "todo", "title": "Export to Markdown, CSV and JSON" },
+            { "status": "done", "title": "Export to Markdown, CSV and JSON" },
             { "status": "todo", "title": "Import tasks from requirement documents" }
           ]
         },

@@ -253,6 +253,7 @@ for (const rt of RUNTIMES) {
       assert.match(page.headers["content-security-policy"], /default-src 'self'/);
       assert.match((await request(port, "GET", "/app.js")).headers["content-type"], /javascript/);
       assert.match((await request(port, "GET", "/markdown.js")).headers["content-type"], /javascript/);
+      assert.match((await request(port, "GET", "/export.js")).headers["content-type"], /javascript/);
       const bad = await request(port, "GET", "/api/projects/%E0%A4%A/progress");
       assert.ok([400, 404].includes(bad.status), `bad encoding gave ${bad.status}`);
       assert.match(bad.headers["content-type"], /application\/json/);
