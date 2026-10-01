@@ -71,6 +71,7 @@ flowchart LR
 | `/doczi:commit` | One Conventional Commit, after the project's check passes |
 | `/doczi:clean-code`, `/doczi:ui-ux` | Review against the code and UI standards |
 | `/doczi:progress`, `/doczi:setup` | Report or update progress; set a project up |
+| `/doczi:import-tasks` | Turn an SRS, plan or checklist into milestones, tasks and steps linked to their sections; writes only after you agree |
 
 **Reviewer agents**: `security-reviewer`, `test-writer`, `ux-reviewer`, `perf-reviewer`.
 
@@ -182,6 +183,7 @@ check or blocked (with a reason), and questions for you land on the task.
 | `doczi progress add M1 "Task" "Step"` | Add a step |
 | `doczi progress ask M1 "Task" "Question?"` · `answer M1 "Task" 1 "Answer"` | Questions and answers |
 | `doczi progress label M1 "Task" --type bug --add ui,api` | Set a task's type and tags (`--type none`, `--remove`, `--tags` replaces) |
+| `doczi import docs/SRS.md --milestone M1 [--bullets] [--write]` | Add tasks from a document's headings and checklists (or a JSON plan); previews unless `--write` |
 | `doczi export [--format md\|csv\|json] [--out file\|-]` | Write the plan to a new file (never over an existing one), or print it |
 | `doczi projects [add <path> \| remove <id>]` | The dashboard's project list |
 | `doczi serve [--runtime node\|php\|python] [--port N]` | Start the dashboard |

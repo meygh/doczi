@@ -10,6 +10,7 @@ import { addQuestion, addStep, answerQuestion, labelTask, labelText, setStatus, 
 import { get as getProject, list as listProjects } from "../lib/registry.mjs";
 import { DATA_LABEL, listText, summaryText } from "../lib/report.mjs";
 import { openProject, readProgress, updateProgress } from "../lib/store.mjs";
+import { importReport, mergePlan, planFromFile } from "../lib/importer.mjs";
 
 // Writes may reach only the project this server runs in, or projects the user registered.
 // An agent steered by injected text cannot aim them at an arbitrary folder.
@@ -124,6 +125,30 @@ ${listText(readProgress(openProject(a.project)), a.milestone)}`,
     run: (a) => {
       const r = updateProgress(writableProject(a.project), (d) => labelTask(d, { ...a, add: a.add || [], remove: a.remove || [] }));
       return `${r.milestone} › ${r.task.name}: ${labelText(r.task) || "no type or tags"}`;
+    },
+  },
+  {
+    name: "progress_import",
+    description: "Add milestones, tasks and steps from a plan, or from a Markdown file in the project (headings become tasks, checklist items steps, linked to their sections). " +
+      "Without apply it only shows what would be added: show that to the user and apply only after they agree. Existing items are matched by id, name or title and never changed.",
+    inputSchema: {
+      type: "object",
+      properties: {
+        project,
+        plan: { type: "object", description: '{ "milestones": [{ "id", "name", "when?", "exit?", "tasks": [{ "name", "type?", "tags?", "docs?", "steps": [{ "title", "status?" }] }] }] }' },
+        file: { type: "string", description: "A Markdown or .json plan file inside the project, instead of plan." },
+        milestone: { type: "string", description: "For a Markdown file: the milestone id for its tasks (created when new)." },
+        name: { type: "string", description: "For a Markdown file: the new milestone's name." },
+        bullets: { type: "boolean", description: "For a Markdown file: plain list items become steps too." },
+        apply: { type: "boolean", description: "true adds the items; otherwise this is a preview." },
+      },
+    },
+    run: (a) => {
+      const target = writableProject(a.project);
+      if (Boolean(a.plan) === Boolean(a.file)) throw new Error('Give either "plan" or "file".');
+      const plan = a.plan || planFromFile(target.root, a.file, { milestone: a.milestone, name: a.name, bullets: a.bullets === true });
+      if (a.apply !== true) return importReport(mergePlan(structuredClone(readProgress(target)), plan), false, "Call again with apply: true once the user agrees.");
+      return importReport(updateProgress(target, (d) => mergePlan(d, plan)), true);
     },
   },
   {

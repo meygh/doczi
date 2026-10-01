@@ -89,6 +89,7 @@ The dashboard filters tasks by both. Every writer keeps them as they are.
 | `progress_list` | `project?`, `milestone?` | Every task and step with status and number, plus questions |
 | `progress_set_status` | `project?`, `milestone`, `task`, `step`, `status`, `reason?` | `M0 › Task › Step: todo → doing` |
 | `progress_add_step` | `project?`, `milestone`, `task`, `title`, `status?` | Confirmation |
+| `progress_import` | `project?`, `plan` or `file` (+ `milestone`, `name?`, `bullets?`), `apply?` | Without `apply`, what would be added; with `apply: true`, adds it. Matches existing milestones by id, tasks by name and steps by title; never changes them |
 | `progress_label_task` | `project?`, `milestone`, `task`, `type?` (a type or `none`), `tags?` (replaces), `add?`, `remove?` | `M0 › Task: [bug] #ui #api` |
 | `progress_ask` | `project?`, `milestone`, `task`, `question` | Records a question for the user |
 | `progress_answer` | `project?`, `milestone`, `task`, `question`, `answer` | Records an answer the user gave, marked `"by": "agent"` until the user confirms it in the dashboard |

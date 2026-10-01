@@ -43,7 +43,7 @@ test("initialize answers with server info and tool capability, echoing the proto
 test("tools/list describes every tool with an input schema", async () => {
   const { result } = await call("tools/list", {});
   const names = result.tools.map((t) => t.name);
-  assert.deepEqual(names.sort(), ["progress_add_step", "progress_answer", "progress_ask", "progress_label_task", "progress_list", "progress_set_status", "progress_summary", "projects_list", "rules_get"]);
+  assert.deepEqual(names.sort(), ["progress_add_step", "progress_answer", "progress_ask", "progress_import", "progress_label_task", "progress_list", "progress_set_status", "progress_summary", "projects_list", "rules_get"]);
   for (const t of result.tools) assert.equal(t.inputSchema.type, "object");
 });
 
@@ -80,6 +80,24 @@ test("progress_label_task sets a task's type and tags", async () => {
   assert.equal(r.isError, true);
   const saved = JSON.parse(fs.readFileSync(path.join(project, "docs/progress/milestones.json"), "utf8"));
   assert.equal(saved.milestones[0].tasks[0].type, "bug");
+});
+
+test("progress_import previews a plan or a document, and adds it only when told to apply", async () => {
+  const file = path.join(project, "docs/progress/milestones.json");
+  const plan = { milestones: [{ id: "M7", name: "Payments", tasks: [{ name: "Gateway", type: "feature", steps: [{ title: "Interface" }] }] }] };
+  let r = await tool("progress_import", { plan });
+  assert.equal(r.isError, undefined, r.content[0].text);
+  assert.match(r.content[0].text, /Would add 1 milestone, 1 task and 1 step/);
+  assert.match(r.content[0].text, /apply: true/);
+  assert.equal(JSON.parse(fs.readFileSync(file, "utf8")).milestones.some((m) => m.id === "M7"), false);
+  r = await tool("progress_import", { plan, apply: true });
+  assert.match(r.content[0].text, /Added 1 milestone, 1 task and 1 step/);
+  assert.equal(JSON.parse(fs.readFileSync(file, "utf8")).milestones.at(-1).tasks[0].type, "feature");
+  fs.writeFileSync(path.join(project, "docs/reqs.md"), "## Login\n\n- [ ] Form\n");
+  r = await tool("progress_import", { file: "docs/reqs.md", milestone: "M7", apply: true });
+  assert.match(r.content[0].text, /Added 1 task and 1 step/);
+  r = await tool("progress_import", { file: "../outside.md", milestone: "M7" });
+  assert.equal(r.isError, true);
 });
 
 test("tool errors come back as isError results, not protocol errors", async () => {

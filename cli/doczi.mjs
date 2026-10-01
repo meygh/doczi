@@ -11,6 +11,7 @@ import { addQuestion, addStep, answerQuestion, format, labelTask, labelText, par
 import { list, register, unregister } from "../lib/registry.mjs";
 import { clean, listText, summaryText } from "../lib/report.mjs";
 import { toCsv, toJson, toMarkdown } from "../lib/export.mjs";
+import { importReport, mergePlan, planFromFile } from "../lib/importer.mjs";
 import { occupied } from "../lib/fsutil.mjs";
 import { assertInside, openProject, readProgress, updateProgress, writeFileAtomic } from "../lib/store.mjs";
 
@@ -39,6 +40,12 @@ Usage: doczi <command> [options]
       ask <milestone> <task> "<question>"
       answer <milestone> <task> <question number or text> "<answer>"
       --project <id|path>    Another project than the current one
+  import <file>              Add tasks and steps from a document; shows them first
+      --milestone <id>       Milestone for a Markdown file's tasks (created if new)
+      --name "<name>"        Its name, when it is new
+      --bullets              Plain list items become steps too, not only "- [ ]"
+      --write                Add them (without it, nothing is written)
+                             A .json file is a plan: { "milestones": [ … ] }
   export                     Write the plan to a new file (never over an existing one)
       --format md|csv|json   Default md
       --out <file>|-         Default <title>-progress-<date>.<format>; - prints it
@@ -64,7 +71,7 @@ function parseArgs(argv) {
     if (a.startsWith("--")) {
       const [key, inline] = a.slice(2).split("=", 2);
       if (inline !== undefined) out.flags[key] = inline;
-      else if (argv[i + 1] !== undefined && !argv[i + 1].startsWith("--") && !["page", "no-register", "no-rules", "all", "yes", "no-open", "open", "self", "staged"].includes(key)) out.flags[key] = argv[++i];
+      else if (argv[i + 1] !== undefined && !argv[i + 1].startsWith("--") && !["page", "no-register", "no-rules", "all", "yes", "no-open", "open", "self", "staged", "write", "bullets"].includes(key)) out.flags[key] = argv[++i];
       else out.flags[key] = true;
     } else out._.push(a);
   }
@@ -182,6 +189,21 @@ function progress(args) {
 }
 
 const EXPORTERS = { md: toMarkdown, csv: toCsv, json: toJson };
+
+// Read a Markdown document (or a JSON plan) into tasks and steps; show what would be added,
+// and add it only with --write.
+function importPlan(args) {
+  const [source] = args._;
+  if (!source) throw new UsageError("Usage: doczi import <file.md> --milestone <id> [--name \"…\"] [--bullets] [--write]\n       doczi import <plan.json> [--write]");
+  const project = openProject(args.flags.project);
+  const plan = planFromFile(project.root, path.resolve(source), {
+    milestone: typeof args.flags.milestone === "string" ? args.flags.milestone : undefined,
+    name: typeof args.flags.name === "string" ? args.flags.name : undefined,
+    bullets: args.flags.bullets === true,
+  });
+  if (!args.flags.write) return say(importReport(mergePlan(structuredClone(readProgress(project)), plan), false, "Run again with --write to add them."));
+  say(importReport(updateProgress(project, (d) => mergePlan(d, plan)), true));
+}
 
 function exportPlan(args) {
   const kind = typeof args.flags.format === "string" ? args.flags.format.toLowerCase() : "md";
@@ -316,6 +338,7 @@ try {
   switch (command) {
     case "init": init(parseArgs(rest)); break;
     case "progress": progress(parseArgs(rest)); break;
+    case "import": importPlan(parseArgs(rest)); break;
     case "export": exportPlan(parseArgs(rest)); break;
     case "check-ai": checkAi(parseArgs(rest)); break;
     case "git-hooks": gitHooks(parseArgs(rest)); break;
