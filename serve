@@ -1,123 +1,162 @@
 #!/usr/bin/env bash
-# doczi dashboard launcher (macOS, Linux, Git Bash). Picks Node.js, PHP or Python 3.
-# Usage: ./serve                              interactive menu
-#        ./serve --runtime php --port 4800 --no-open
+# doczi dashboard launcher (macOS, Linux, Git Bash). Serves with Node.js, PHP or Python 3.
+# Usage: ./serve                  start with the saved settings, or the defaults the first time
+#        ./serve --setup          choose runtime, port and browser, and save them
+#        ./serve --reset          forget the saved settings
+#        ./serve --runtime php --port 4800 --no-open   for this run only
 set -uo pipefail
 cd "$(dirname "$0")" || exit 1
 
-runtime="" port="" open="ask" yes=0
+runtime="" port="" open="" setup=0 reset=0 dry=0
 while [ $# -gt 0 ]; do
   case "$1" in
     -r|--runtime) runtime="${2:-}"; shift 2 ;;
     -p|--port) port="${2:-}"; shift 2 ;;
     --no-open) open="no"; shift ;;
     --open) open="yes"; shift ;;
-    -y|--yes) yes=1; shift ;;
-    -h|--help) sed -n '2,4p' "$0" | sed 's/^# \{0,1\}//'; echo "Options: --runtime node|php|python  --port N  --open|--no-open  --yes"; exit 0 ;;
+    --setup) setup=1; shift ;;
+    --reset) reset=1; shift ;;
+    --dry-run) dry=1; shift ;;
+    -y|--yes) shift ;; # kept for older scripts: the start no longer asks anything
+    -h|--help) sed -n '2,6p' "$0" | sed 's/^# \{0,1\}//'; echo "Options: --runtime node|php|python  --port N  --open|--no-open  --setup  --reset  --dry-run"; exit 0 ;;
     *) echo "Unknown option: $1 (try --help)"; exit 2 ;;
   esac
 done
+case "$runtime" in ""|node|php|python) ;; *) echo "Unknown runtime \"$runtime\"; use node, php or python."; exit 2 ;; esac
 
-if [ -t 1 ]; then b=$'\e[1m' d=$'\e[2m' g=$'\e[32m' y=$'\e[33m' r=$'\e[0m'; else b="" d="" g="" y="" r=""; fi
+home="${DOCZI_HOME:-${SOLO_KEEL_HOME:-$HOME/.doczi}}" # SOLO_KEEL_HOME: legacy, read until v0.3
+conf="$home/serve.conf"
+label() { case "$1" in node) echo "Node.js" ;; php) echo "PHP" ;; python) echo "Python 3" ;; esac; }
 
-# Detect runtimes: name, label, version, command.
-node_v=$(node --version 2>/dev/null)
-php_v=$(php -r 'echo PHP_VERSION;' 2>/dev/null)
+# Only the runtime that is needed is looked up; each lookup starts a process. Children get
+# empty input, so they cannot use up answers piped to this script.
 py_cmd=""
-for c in python3 python; do
-  v=$("$c" --version 2>&1) && case "$v" in "Python 3"*) py_cmd=$c; py_v=${v#Python }; break ;; esac
-done
-py_v=${py_v:-}
+version_of() {
+  case "$1" in
+    node) node --version </dev/null 2>/dev/null | sed 's/^v//' ;;
+    php) php -r 'echo PHP_VERSION;' </dev/null 2>/dev/null ;;
+    python)
+      for c in python3 python; do
+        v=$("$c" --version </dev/null 2>&1) && case "$v" in "Python 3"*) py_cmd=$c; echo "${v#Python }"; return ;; esac
+      done ;;
+  esac
+}
 
-names=(node php python)
-labels=("Node.js" "PHP" "Python 3")
-versions=("$node_v" "$php_v" "$py_v")
+# A port is free when something can listen on it. Listening is instant; a refused connection
+# can take seconds (Git Bash on Windows), so that is the last resort.
+port_free() {
+  if command -v node >/dev/null 2>&1; then
+    node -e 'const s=require("net").createServer();s.once("error",()=>process.exit(1));s.listen(+process.argv[1],"127.0.0.1",()=>s.close())' "$1" </dev/null 2>/dev/null
+  elif command -v python3 >/dev/null 2>&1; then
+    python3 -c 'import socket,sys; s=socket.socket(); s.bind(("127.0.0.1", int(sys.argv[1])))' "$1" </dev/null 2>/dev/null
+  else
+    ! (exec 3<>"/dev/tcp/127.0.0.1/$1") 2>/dev/null
+  fi
+}
+free_port() { local p=$1; while ! port_free "$p"; do p=$((p + 1)); [ "$p" -gt 65535 ] && { echo 0; return; }; done; echo "$p"; }
+valid_port() { [[ "$1" =~ ^[0-9]+$ ]] && [ "$1" -ge 1024 ] && [ "$1" -le 65535 ]; }
 
-home="${DOCZI_HOME:-${SOLO_KEEL_HOME:-}}" # SOLO_KEEL_HOME: legacy, read until v0.3
-if [ -z "$home" ]; then
-  home="$HOME/.doczi"
-  [ ! -f "$home/projects.json" ] && [ -f "$HOME/.solo-keel/projects.json" ] && home="$HOME/.solo-keel" # legacy home
+if [ $reset -eq 1 ]; then
+  rm -f "$conf"
+  echo "Forgot the saved settings; using the defaults."
 fi
-count=0
-[ -f "$home/projects.json" ] && count=$(grep -c '"id"' "$home/projects.json" 2>/dev/null || echo 0)
 
-port_busy() { (exec 3<>"/dev/tcp/127.0.0.1/$1") 2>/dev/null; }
+# Saved settings: key=value lines, shared with the PowerShell launcher.
+saved_runtime="" saved_port="" saved_open="" have_saved=0
+if [ $setup -eq 0 ] && [ -f "$conf" ]; then
+  have_saved=1
+  while IFS='=' read -r key value; do
+    value=$(printf '%s' "$value" | tr -d '\r' | sed 's/^ *//;s/ *$//')
+    case "$key" in
+      runtime) saved_runtime=$value ;;
+      port) saved_port=$value ;;
+      open) saved_open=$value ;;
+    esac
+  done < "$conf"
+fi
+version=""
 
-if [ -z "$runtime" ] && [ $yes -eq 0 ]; then
+if [ $setup -eq 1 ]; then
   echo
-  echo "  ${b}doczi${r} · project dashboard"
-  echo "  ${d}──────────────────────────────${r}"
-  echo "  ${d}Projects registered: $count  ($home)${r}"
-  echo
+  echo "  doczi - project dashboard setup"
+  echo "  -------------------------------"
+  keys=(node php python) versions=() default=""
+  for i in 0 1 2; do versions[$i]=$(version_of "${keys[$i]}"); [ -z "$default" ] && [ -n "${versions[$i]}" ] && default=$((i + 1)); done
+  [ -z "$default" ] && { echo "  None of Node.js, PHP or Python 3 is installed. Install one of them and run this again."; exit 1; }
   echo "  Serve it with:"
+  for i in 0 1 2; do
+    if [ -n "${versions[$i]}" ]; then printf "    %d) %-9s %s\n" $((i + 1)) "$(label "${keys[$i]}")" "${versions[$i]}"
+    else printf "    %d) %-9s not installed\n" $((i + 1)) "$(label "${keys[$i]}")"; fi
+  done
+  while :; do
+    read -r -p "  Choose [$default]: " choice || choice=""
+    choice=${choice:-$default}
+    case "$choice" in 1|2|3) [ -n "${versions[$((choice - 1))]}" ] && break ;; esac
+    echo "  Type the number of an installed runtime."
+  done
+  runtime=${keys[$((choice - 1))]}
+  version=${versions[$((choice - 1))]}
+  [ "$runtime" = python ] && version_of python >/dev/null
+  suggest=$(free_port 4800)
+  while :; do
+    read -r -p "  Port [$suggest]: " answer || answer=""
+    answer=${answer:-$suggest}
+    if ! valid_port "$answer"; then echo "  Use a number from 1024 to 65535."
+    elif ! port_free "$answer"; then echo "  Port $answer is in use; try $suggest."
+    else port=$answer; break; fi
+  done
+  read -r -p "  Open it in your browser when it starts? [Y/n]: " answer || answer=""
+  case "$answer" in n|N|no|No) open_setting=no ;; *) open_setting=yes ;; esac
+  mkdir -p "$home"
+  printf '%s\n' "# doczi dashboard settings. Change them with: doczi serve --setup; forget them with: doczi serve --reset" \
+    "runtime=$runtime" "port=$port" "open=$open_setting" > "$conf"
+  echo "  Saved to $conf. Next time it starts with these, without questions."
+  [ -z "$open" ] && open=$open_setting
 fi
 
-default=""
-for i in 0 1 2; do
-  if [ -n "${versions[$i]}" ]; then
-    [ -z "$default" ] && default=$((i + 1))
-    [ -z "$runtime" ] && [ $yes -eq 0 ] && printf "    ${b}%d)${r} %-9s ${g}%s${r}\n" $((i + 1)) "${labels[$i]}" "${versions[$i]}"
-  else
-    [ -z "$runtime" ] && [ $yes -eq 0 ] && printf "    ${d}%d) %-9s not installed${r}\n" $((i + 1)) "${labels[$i]}"
+# Runtime: this run's flag, else the saved one, else the first installed of Node.js, PHP, Python.
+explicit_runtime=$runtime
+if [ -z "$runtime" ] && [ -n "$saved_runtime" ]; then
+  case "$saved_runtime" in node|php|python) runtime=$saved_runtime ;; *) echo "The saved runtime \"$saved_runtime\" is unknown; using the default." ;; esac
+fi
+if [ -n "$runtime" ] && [ -z "$version" ]; then
+  version=$(version_of "$runtime")
+  [ "$runtime" = python ] && [ -n "$version" ] && version_of python >/dev/null
+  if [ -z "$version" ]; then
+    [ -n "$explicit_runtime" ] && { echo "$(label "$runtime") is not installed."; exit 1; }
+    echo "$(label "$runtime") is no longer installed; using the default."
+    runtime=""
   fi
-done
-
-if [ -z "$default" ]; then
-  echo "  ${y}None of Node.js, PHP or Python 3 is installed. Install one of them and run this again.${r}"
-  exit 1
 fi
-
 if [ -z "$runtime" ]; then
-  if [ $yes -eq 1 ]; then choice=$default
-  else
-    echo "    ${b}q)${r} Quit"
-    echo
-    while :; do
-      read -r -p "  Choose [$default]: " choice
-      choice=${choice:-$default}
-      case "$choice" in
-        q|Q) echo "  Bye."; exit 0 ;;
-        1|2|3) [ -n "${versions[$((choice - 1))]}" ] && break; echo "  ${y}${labels[$((choice - 1))]} is not installed; pick another.${r}" ;;
-        *) echo "  ${y}Type 1, 2, 3 or q.${r}" ;;
-      esac
-    done
-  fi
-  runtime=${names[$((choice - 1))]}
+  for k in node php python; do version=$(version_of "$k"); [ -n "$version" ] && { runtime=$k; break; }; done
+  [ -z "$runtime" ] && { echo "None of Node.js, PHP or Python 3 is installed. Install one of them and run this again."; exit 1; }
+  [ "$runtime" = python ] && version_of python >/dev/null
 fi
 
-case "$runtime" in
-  node) [ -n "$node_v" ] || { echo "Node.js is not installed."; exit 1; } ;;
-  php) [ -n "$php_v" ] || { echo "PHP is not installed."; exit 1; } ;;
-  python) [ -n "$py_cmd" ] || { echo "Python 3 is not installed."; exit 1; } ;;
-  *) echo "Unknown runtime \"$runtime\"; use node, php or python."; exit 2 ;;
-esac
-
-suggest=4800
-while port_busy $suggest; do suggest=$((suggest + 1)); done
-if [ -z "$port" ]; then
-  if [ $yes -eq 1 ]; then port=$suggest
-  else
-    while :; do
-      read -r -p "  Port [$suggest]: " port
-      port=${port:-$suggest}
-      if ! [[ "$port" =~ ^[0-9]+$ ]] || [ "$port" -lt 1024 ] || [ "$port" -gt 65535 ]; then echo "  ${y}Use a number from 1024 to 65535.${r}"
-      elif port_busy "$port"; then echo "  ${y}Port $port is in use; try $suggest.${r}"
-      else break; fi
-    done
-  fi
-elif ! [[ "$port" =~ ^[0-9]+$ ]] || [ "$port" -lt 1024 ] || [ "$port" -gt 65535 ]; then
-  echo "Use a port from 1024 to 65535."; exit 2
-elif port_busy "$port"; then
-  echo "Port $port is in use; try $suggest."; exit 1
+# Port: this run's flag (must be free), else the saved one or 4800, moving on when it is busy.
+if [ -n "$port" ] && [ $setup -eq 0 ]; then
+  valid_port "$port" || { echo "Use a port from 1024 to 65535."; exit 2; }
+  port_free "$port" || { echo "Port $port is in use; try $(free_port $((port + 1)))."; exit 1; }
+elif [ -z "$port" ]; then
+  wanted=4800
+  valid_port "$saved_port" && wanted=$saved_port
+  port=$(free_port "$wanted")
+  [ "$port" != "$wanted" ] && echo "Port $wanted is in use; using $port."
 fi
 
-if [ "$open" = "ask" ]; then
-  if [ $yes -eq 1 ]; then open="yes"
-  else read -r -p "  Open it in your browser? [Y/n]: " a; case "$a" in n|N|no|No) open="no" ;; *) open="yes" ;; esac
-  fi
-fi
-
+[ -z "$open" ] && { [ "$saved_open" = no ] && open=no || open=yes; }
 url="http://localhost:$port/"
+
+if [ $setup -eq 0 ] && [ $have_saved -eq 0 ] && [ $reset -eq 0 ]; then
+  echo "Using the default settings. To choose the runtime, port and browser: doczi serve --setup"
+fi
+if [ $dry -eq 1 ]; then
+  [ "$open" = yes ] && how="opening the browser" || how="without opening the browser"
+  echo "Would serve with $runtime on port $port, $how."
+  exit 0
+fi
+
 if [ "$open" = "yes" ]; then
   (sleep 1
    if command -v xdg-open >/dev/null; then xdg-open "$url"
@@ -126,10 +165,9 @@ if [ "$open" = "yes" ]; then
    fi) >/dev/null 2>&1 &
 fi
 
-echo
 export DOCZI_PORT=$port
 case "$runtime" in
   node) exec node server/node/server.mjs --port "$port" ;;
-  php) echo "doczi dashboard (PHP $php_v) → $url   Stop with Ctrl+C."; exec php -S "127.0.0.1:$port" server/php/router.php ;;
+  php) echo "doczi dashboard (PHP $version) at $url - stop with Ctrl+C."; exec php -S "127.0.0.1:$port" server/php/router.php ;;
   python) exec "$py_cmd" server/python/server.py --port "$port" ;;
 esac

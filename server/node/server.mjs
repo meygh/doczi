@@ -186,5 +186,5 @@ const server = http.createServer(async (req, res) => {
 server.requestTimeout = 15000;
 
 server.listen(PORT, "127.0.0.1", () => {
-  console.log(`doczi dashboard (Node.js ${process.versions.node}) → http://localhost:${PORT}/   Stop with Ctrl+C.`);
+  console.log(`doczi dashboard (Node.js ${process.versions.node}) at http://localhost:${PORT}/ - stop with Ctrl+C.`);
 });

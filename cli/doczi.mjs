@@ -56,8 +56,12 @@ Usage: doczi <command> [options]
                              and copy the project list. Never overwrites files.
   projects                   List registered projects
       add <path> | remove <id>
-  serve [options]            Start the dashboard (menu: Node.js, PHP or Python)
-      --runtime node|php|python  --port <n>  --no-open  --yes
+  serve [options]            Start the dashboard: with the saved settings, or the defaults
+                             the first time (no questions)
+      --setup                Choose runtime, port and browser, and save them
+      --reset                Forget the saved settings
+      --runtime node|php|python  --port <n>  --open | --no-open   For this run only
+      --dry-run              Say what it would start, and stop
   mcp                        Run the MCP server on stdio (agents use this)
   help                       This text
 
@@ -328,7 +332,7 @@ function serve(argv) {
 
 // "--runtime php --no-open" → "-Runtime php -NoOpen" for the PowerShell launcher.
 function toPsArgs(argv) {
-  const names = { runtime: "-Runtime", port: "-Port", "no-open": "-NoOpen", open: "-Open", yes: "-Yes", y: "-Yes" };
+  const names = { runtime: "-Runtime", port: "-Port", "no-open": "-NoOpen", open: "-Open", setup: "-Setup", reset: "-Reset", "dry-run": "-DryRun", yes: "-Yes", y: "-Yes" };
   return argv.map((a) => (a.startsWith("-") ? names[a.replace(/^-+/, "")] || a : a));
 }
 

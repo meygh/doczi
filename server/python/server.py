@@ -438,7 +438,7 @@ def main():
     parser.add_argument("--port", type=int, default=int(env("PORT") or 4800))
     args = parser.parse_args()
     server = ThreadingHTTPServer(("127.0.0.1", args.port), Handler)
-    print(f"doczi dashboard (Python {sys.version.split()[0]}) → http://localhost:{args.port}/   Stop with Ctrl+C.", flush=True)
+    print(f"doczi dashboard (Python {sys.version.split()[0]}) at http://localhost:{args.port}/ - stop with Ctrl+C.", flush=True)
     try:
         server.serve_forever()
     except KeyboardInterrupt:

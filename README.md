@@ -86,7 +86,7 @@ flowchart LR
 - Questions and answers per task. Answers an agent records stay open until you confirm them.
 - Document links (SRS, architecture, plans, ADRs) at project, milestone and task level.
 
-**Dashboard** (served by Node.js, PHP or Python; you pick in a short menu)
+**Dashboard** (served by Node.js, PHP or Python; starts with no questions, `--setup` to choose)
 - Whole-project bar, and a "Tasks by status" bar with a legend that filters.
 - A **Needs you** panel: blocked items with reasons, work waiting for your check, open
   questions.
@@ -169,6 +169,11 @@ doczi progress
 doczi serve
 ```
 
+The first start asks nothing: it serves with Node.js (or PHP, or Python 3) on port 4800 and
+opens your browser. To choose for yourself, once, run `doczi serve --setup`. The choices are
+kept in `~/.doczi/serve.conf` for the next starts. `doczi serve --reset` goes back to the
+defaults.
+
 Your agents keep the progress current as they work: steps move to in progress, waiting for your
 check or blocked (with a reason), and questions for you land on the task.
 
@@ -186,7 +191,7 @@ check or blocked (with a reason), and questions for you land on the task.
 | `doczi import docs/SRS.md --milestone M1 [--bullets] [--write]` | Add tasks from a document's headings and checklists (or a JSON plan); previews unless `--write` |
 | `doczi export [--format md\|csv\|json] [--out file\|-]` | Write the plan to a new file (never over an existing one), or print it |
 | `doczi projects [add <path> \| remove <id>]` | The dashboard's project list |
-| `doczi serve [--runtime node\|php\|python] [--port N]` | Start the dashboard |
+| `doczi serve [--setup \| --reset] [--runtime node\|php\|python] [--port N] [--no-open]` | Start the dashboard with the saved settings (the defaults the first time, no questions); `--setup` chooses and saves them, `--reset` forgets them, the other flags apply to one run |
 | `doczi git-hooks` | Install the commit-msg hook that strips assistant attribution |
 | `doczi migrate [dir]` | Move a project set up as solo-keel to doczi (see below) |
 | `doczi check-ai [files…]` | Scan files for AI tool or vendor mentions |
