@@ -60,6 +60,11 @@
         <span class="big" id="total-pct">0%</span>
       </div>
       <div class="bar thick" id="total-bar"></div>
+      <ul class="bar-key" id="bar-key" aria-label="Bar colours">
+        <li><span class="dot done" aria-hidden="true"></span>Done</li>
+        <li><span class="dot review" aria-hidden="true"></span>Waiting for your check (counts 75%)</li>
+        <li><span class="dot doing" aria-hidden="true"></span>In progress (counts 50%)</li>
+      </ul>
       <p class="stats" id="total-stats"></p>
 
       <div class="overview-head small">
@@ -71,7 +76,10 @@
     </section>
 
     <section class="card attention" id="attention" hidden aria-labelledby="attention-title">
-      <h2 id="attention-title">Needs you</h2>
+      <div class="attention-head">
+        <h2 id="attention-title"><button type="button" class="toggle" id="attention-toggle" aria-expanded="true" aria-controls="attention-body"><span class="chev" aria-hidden="true">▸</span><span>Needs you</span> <span class="att-count" id="attention-count"></span></button></h2>
+        <button type="button" class="link" id="attention-hide">Hide</button>
+      </div>
       <div id="attention-body"></div>
     </section>
 
@@ -88,6 +96,7 @@
       <button id="expand">Expand all</button>
       <button id="collapse">Collapse all</button>
       <label><input type="checkbox" id="hide-done"> Hide finished</label>
+      <button type="button" id="attention-show" aria-pressed="true" hidden>Needs you <span class="att-count" id="attention-show-count"></span></button>
       <span class="spacer"></span>
       <label>Milestones per page
         <select id="per-page"><option>1</option><option>2</option><option selected>3</option><option>5</option></select>

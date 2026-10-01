@@ -356,7 +356,8 @@
     const parts = n ? [n.done && `${n.done} done`, n.review && `${n.review} waiting for your check`, n.doing && `${n.doing} in progress`].filter(Boolean) : [];
     return `<div class="bar ${cls}" role="progressbar" aria-valuemin="0" aria-valuemax="100" aria-valuenow="${p}" aria-label="${esc(name)} progress"` +
       ` aria-valuetext="${p}%${parts.length ? ": " + esc(parts.join(", ")) : ""}">` +
-      ["done", "review", "doing"].map((k) => `<i class="${k}" data-w="${share[k] * 100}"></i>`).join("") + "</div>";
+      // Only segments with a share, so the gap between segments never shows on an empty one.
+      ["done", "review", "doing"].filter((k) => share[k] > 0).map((k) => `<i class="${k}" data-w="${share[k] * 100}"></i>`).join("") + "</div>";
   };
   // Widths are applied after rendering: the page's CSP forbids inline style attributes.
   const paint = (root) => root.querySelectorAll("[data-w]").forEach((el) => { el.style.width = el.dataset.w + "%"; });
@@ -520,7 +521,7 @@
         </div>
         <span class="task-meta">${x.done}/${t.steps.length} · ${x.percent}%</span>
       </div>
-      ${barHtml(x.share, "thin", t.name, x.n)}
+      ${barHtml(x.share, "task", t.name, x.n)}
       <div class="task-body" id="tb-${key}" ${open ? "" : "hidden"}>
         ${chips(t.docs, `${t.name} documents`)}
         ${t.steps.length ? `<ul class="steps">${steps}</ul>` : '<p class="empty">No steps yet.</p>'}
@@ -542,13 +543,47 @@
         x.questions.forEach((qq) => { if (!text(qq.a) || qq.by === "agent") questions.push(`<li><a href="#t-${key}" data-jump="t-${key}">${where}</a>: ${esc(qq.q)}${text(qq.a) ? " <span class=\"why\">(confirm the agent's answer)</span>" : ""}</li>`); });
       }
     }
-    const group = (title, status, items) => items.length
-      ? `<h3><span class="dot ${status}" aria-hidden="true"></span>${title} (${items.length})</h3><ul>${items.slice(0, 8).join("")}${items.length > 8
-        ? `<li><button class="link" data-filter-only="${status}">Show all ${items.length}</button></li>` : ""}</ul>` : "";
-    const html = group("Blocked", "blocked", blocked) + group("Waiting for your check", "review", review) + group("Questions for you", "review", questions);
-    $("attention").hidden = !html;
+    const state = attentionState();
+    const group = (key, title, status, items) => items.length
+      ? `<details class="att-group" data-group="${key}" ${state.closed[key] ? "" : "open"}><summary><span class="chev" aria-hidden="true">▸</span><span class="dot ${status}" aria-hidden="true"></span>${title} (${items.length})</summary><ul>${items.slice(0, 8).join("")}${items.length > 8
+        ? `<li><button class="link" data-filter-only="${status}">Show all ${items.length}</button></li>` : ""}</ul></details>` : "";
+    const html = group("blocked", "Blocked", "blocked", blocked) + group("review", "Waiting for your check", "review", review) + group("questions", "Questions for you", "review", questions);
+    const total = blocked.length + review.length + questions.length;
     $("attention-body").innerHTML = html;
+    $("attention-count").textContent = total ? `(${total})` : "";
+    $("attention-show-count").textContent = total ? `(${total})` : "";
+    attentionHasItems = Boolean(html);
+    applyAttention();
   }
+
+  // Needs you: shown or hidden, collapsed or open, and which groups are closed; per project.
+  let attentionHasItems = false;
+  const attentionKey = () => `doczi.attention.${mode === "api" ? projectId : "file"}`;
+  function attentionState() {
+    const s = storage.get(attentionKey(), {});
+    return { hidden: s.hidden === true, collapsed: s.collapsed === true, closed: s.closed && typeof s.closed === "object" ? s.closed : {} };
+  }
+  const saveAttention = (change) => storage.set(attentionKey(), { ...attentionState(), ...change });
+  function applyAttention() {
+    const s = attentionState();
+    $("attention").hidden = !attentionHasItems || s.hidden;
+    $("attention").classList.toggle("collapsed", s.collapsed);
+    $("attention-toggle").setAttribute("aria-expanded", String(!s.collapsed));
+    $("attention-show").hidden = !attentionHasItems;
+    $("attention-show").setAttribute("aria-pressed", String(!s.hidden));
+  }
+  $("attention-toggle").onclick = () => { saveAttention({ collapsed: !attentionState().collapsed }); applyAttention(); };
+  $("attention-hide").onclick = () => { saveAttention({ hidden: true }); applyAttention(); $("attention-show").focus(); };
+  $("attention-show").onclick = () => {
+    const hidden = !attentionState().hidden;
+    saveAttention(hidden ? { hidden } : { hidden, collapsed: false });
+    applyAttention();
+  };
+  // A group's open state, saved when the person opens or closes it.
+  $("attention-body").addEventListener("toggle", (e) => {
+    const key = e.target.dataset?.group;
+    if (key) saveAttention({ closed: { ...attentionState().closed, [key]: !e.target.open } });
+  }, true);
 
   function renderPager(pool, pages, filtering) {
     $("show-all").textContent = view.all ? "Show in pages" : "Show all";
@@ -571,7 +606,11 @@
 
   // Make a milestone or task visible (right page, expanded), scroll to it and focus it.
   function jumpTo(id, smooth = true) {
-    if (id === "attention") return $("attention").scrollIntoView({ behavior: smooth ? motion() : "auto" });
+    if (id === "attention") {
+      saveAttention({ hidden: false, collapsed: false });
+      applyAttention();
+      return $("attention").scrollIntoView({ behavior: smooth ? motion() : "auto" });
+    }
     const m = id.match(/^([mt])-(\d+)(?:\.(\d+))?$/);
     if (!m || !summary) return;
     const mi = Number(m[2]);
