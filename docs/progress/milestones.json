@@ -128,6 +128,69 @@
             { "status": "todo", "title": "History of changes per step (from git)" },
             { "status": "todo", "title": "Remove the legacy solo-keel names (v0.3)" }
           ]
+        },
+        {
+          "name": "Dashboard",
+          "docs": [
+            {
+              "title": "Plan",
+              "path": "docs/plans/v0.2-dashboard.md"
+            }
+          ],
+          "steps": [
+            { "status": "todo", "title": "Clearer task bars and a Needs you panel that hides and collapses" }
+          ]
+        },
+        {
+          "name": "Task types and tags",
+          "docs": [
+            {
+              "title": "Plan",
+              "path": "docs/plans/v0.2-dashboard.md"
+            }
+          ],
+          "steps": [
+            { "status": "todo", "title": "Types and tags in model, schema, servers, CLI, MCP and filters" }
+          ]
+        },
+        {
+          "name": "Import and export",
+          "docs": [
+            {
+              "title": "Plan",
+              "path": "docs/plans/v0.2-dashboard.md"
+            }
+          ],
+          "steps": [
+            { "status": "todo", "title": "Export to Markdown, CSV and JSON" },
+            { "status": "todo", "title": "Import tasks from requirement documents" }
+          ]
+        },
+        {
+          "name": "Languages",
+          "docs": [
+            {
+              "title": "Plan",
+              "path": "docs/plans/v0.2-dashboard.md"
+            }
+          ],
+          "steps": [
+            { "status": "todo", "title": "Interface strings, language menu and right-to-left layout" },
+            { "status": "todo", "title": "Persian, German, Arabic, Turkish and Spanish translations" }
+          ]
+        },
+        {
+          "name": "Translation",
+          "docs": [
+            {
+              "title": "Plan",
+              "path": "docs/plans/v0.2-dashboard.md"
+            }
+          ],
+          "steps": [
+            { "status": "todo", "title": "Provider settings, usage and budgets" },
+            { "status": "todo", "title": "Translate documents, keeping technical terms" }
+          ]
         }
       ]
     }
