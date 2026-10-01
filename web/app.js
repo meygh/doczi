@@ -383,6 +383,8 @@
       // Only segments with a share, so the gap between segments never shows on an empty one.
       ["done", "review", "doing"].filter((k) => share[k] > 0).map((k) => `<i class="${k}" data-w="${share[k] * 100}"></i>`).join("") + "</div>";
   };
+  // A step's own bar repeats what its checkbox and badge already say, so screen readers skip it.
+  const stepBar = (status) => `<span class="bar step-bar" aria-hidden="true">${WORTH[status] ? `<i class="${status}" data-w="${WORTH[status] * 100}"></i>` : ""}</span>`;
   // Widths are applied after rendering: the page's CSP forbids inline style attributes.
   const paint = (root) => root.querySelectorAll("[data-w]").forEach((el) => { el.style.width = el.dataset.w + "%"; });
 
@@ -498,8 +500,8 @@
         </div>
         ${barHtml(ms.share, "", `${m.id} ${m.name}`)}
         ${text(m.exit) ? `<p class="exit">${trHtml("ms.doneWhen", { exit: `<bdi>${esc(m.exit)}</bdi>` })}</p>` : ""}
+        ${chips(m.docs, tr("docs.of", { name: m.id }))}
         <div class="ms-body" id="mb-${ms.mi}" ${open ? "" : "hidden"}>
-          ${chips(m.docs, tr("docs.of", { name: m.id }))}
           ${tasks.length ? tasks.map((t) => renderTask(ms, t.x, t.q, t.hidden)).join("") : `<p class="empty">${esc(tr("empty.tasks"))}</p>`}
         </div>
       </section>`;
@@ -546,6 +548,7 @@
       return `<li class="s-${status} ${q.steps.has(si) ? "match" : ""}">
         <input type="checkbox" data-step="${pos}" ${status === "done" ? "checked" : ""} aria-label="${esc(st.title)}">
         <span class="step-text"><span class="step-title">${esc(st.title)}</span>${status !== "done" && status !== "todo" ? badge(status) : ""}${status === "blocked" ? info([text(reason) || tr("reason.none")], "step") : ""}</span>
+        ${stepBar(status)}
         <span class="step-menu">
           <button type="button" data-menu="${pos}" aria-expanded="false" aria-controls="menu-${pos}" aria-label="${esc(tr("step.menu", { title: st.title, status: statusLabel(status) }))}">⋯</button>
           <span class="menu" id="menu-${pos}" role="group" aria-label="${esc(tr("step.statusGroup"))}"></span>
@@ -575,11 +578,10 @@
           <h3 class="task-title"><button type="button" class="toggle" data-toggle="t-${key}" aria-expanded="${Boolean(open)}" aria-controls="tb-${key}"><span class="chev" aria-hidden="true">▸</span><span class="label">${esc(t.name)}</span></button></h3>
           ${badge(x.status)}${info(x.reasons, "task")}${qBadge}${labelsHtml(t)}
         </div>
-        <span class="task-meta">${esc(i18n.num(x.done))}/${esc(i18n.num(t.steps.length))} · ${esc(i18n.percent(x.percent))}</span>
+        <span class="task-progress">${barHtml(x.share, "task-bar", t.name, x.n)}<span class="task-meta">${esc(i18n.num(x.done))}/${esc(i18n.num(t.steps.length))} · ${esc(i18n.percent(x.percent))}</span></span>
       </div>
-      ${barHtml(x.share, "task-bar", t.name, x.n)}
+      ${chips(t.docs, tr("docs.of", { name: t.name }))}
       <div class="task-body" id="tb-${key}" ${open ? "" : "hidden"}>
-        ${chips(t.docs, tr("docs.of", { name: t.name }))}
         ${t.steps.length ? `<ul class="steps">${steps}</ul>` : `<p class="empty">${esc(tr("empty.steps"))}</p>`}
         ${text(t.note) ? `<p class="note">${esc(t.note)}</p>` : ""}
         ${qa}

@@ -93,7 +93,8 @@ textarea { width: 100%; padding: 8px 10px; resize: vertical; min-height: 64px; }
 .bar { height: 8px; background: var(--track); border-radius: 99px; overflow: hidden; display: flex; }
 .bar.thick { height: 14px; }
 .bar.thin { height: 5px; }
-.bar.task-bar { height: 8px; }
+.bar.task-bar { height: 8px; width: 96px; flex: none; }
+.bar.step-bar { height: 6px; width: 96px; flex: none; align-self: center; }
 /* A gap between segments, so neighbouring colours never rely on hue alone. */
 .bar i + i { border-inline-start: 2px solid var(--card); }
 .bar i, .dist i { display: block; height: 100%; transition: width .35s ease; }
@@ -195,7 +196,9 @@ button.toggle[aria-expanded="true"] .chev, details.qa-group[open] > summary .che
 .ms-meta, .task-meta { color: var(--muted); font-size: 13px; white-space: nowrap; font-variant-numeric: tabular-nums; }
 .exit { color: var(--muted); font-size: 14px; margin: 10px 0 0; margin-inline-start: 22px; }
 .ms-body { padding-top: 10px; }
-.ms-body > .chips { margin: 0 0 10px; margin-inline-start: 22px; }
+.ms > .chips { margin: 10px 0 0; margin-inline-start: 22px; }
+.task > .chips { margin: 0 0 4px; margin-inline-start: 22px; }
+.task-progress { display: inline-flex; align-items: center; gap: 8px; }
 .task { border-top: 1px solid var(--line); padding: 12px 0 10px; }
 .task-body { padding: 8px 0 4px; padding-inline-start: 22px; }
 .task.complete .task-title { color: var(--muted); }
@@ -298,9 +301,10 @@ footer { color: var(--muted); font-size: 13px; margin-top: 28px; }
   .big { font-size: 28px; }
   section.ms { padding-inline: 14px; }
   .task-body { padding-inline-start: 8px; }
+  .bar.step-bar { width: 48px; }
   .pop { left: auto; inset-inline-end: -8px; transform: none; max-width: calc(100vw - 48px); }
   dialog#reader { width: 100vw; max-width: 100vw; height: 100dvh; max-height: 100dvh; margin: 0; border-radius: 0; }
-  .exit, .ms-body > .chips { margin-inline-start: 0; }
+  .exit, .ms > .chips, .task > .chips { margin-inline-start: 0; }
   .search input { width: 100%; }
   .search, .topbar-tools { flex: 1 1 100%; }
   .topbar-tools .search { flex: 1 1 auto; }
