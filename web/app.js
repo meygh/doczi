@@ -119,7 +119,7 @@
     projectId = id;
     storage.set("progress-project", id);
     if (fresh) {
-      view.page = null; openTasks.clear(); openMilestones.clear(); docCache.clear();
+      view.page = null; openTasks.clear(); openMilestones.clear(); editing.clear(); docCache.clear();
       if (!fromUrl) clearFilters();
     }
     if (!$("app").hidden) $("app").setAttribute("aria-busy", "true");
@@ -319,6 +319,7 @@
   $("search").value = initial.get("q") || "";
   const openMilestones = new Map(); // mi → bool
   const openTasks = new Map();      // "mi.ti" → bool
+  const editing = new Set();        // "mi.ti.qi" of answers being changed
   const container = $("milestones");
   let summary = null;
 
@@ -556,18 +557,24 @@
       </li>`;
     }).join("");
     const qaTitle = x.open ? tr("qa.summaryOpen", { count: x.questions.length, open: x.open }) : tr("qa.summary", { count: x.questions.length });
-    const qa = x.questions.length ? `<details class="qa-group" ${x.open ? "open" : ""}><summary><span class="chev" aria-hidden="true">▸</span>${esc(qaTitle)}</summary>
+    const editingHere = x.questions.some((_, qi) => editing.has(`${key}.${qi}`));
+    const qa = x.questions.length ? `<details class="qa-group" ${x.open || editingHere ? "open" : ""}><summary><span class="chev" aria-hidden="true">▸</span>${esc(qaTitle)}</summary>
       ${x.questions.map((qq, qi) => {
         const answered = Boolean(text(qq.a)), byAgent = answered && qq.by === "agent", pending = !answered || byAgent;
-        const form = (value, button) => `<form data-answer="${ms.mi}.${x.ti}.${qi}"><label class="visually-hidden" for="a-${key}-${qi}">${esc(tr("answer.label"))}</label>
+        const pos = `${key}.${qi}`, isEditing = editing.has(pos);
+        const cancel = isEditing ? `<button type="button" data-cancel-answer="${pos}">${esc(tr("answer.cancel"))}</button>` : "";
+        const form = (value, button) => `<form data-answer="${pos}"><label class="visually-hidden" for="a-${key}-${qi}">${esc(tr("answer.label"))}</label>
               <textarea id="a-${key}-${qi}" name="answer" maxlength="4000" placeholder="${esc(tr("answer.placeholder"))}" required>${esc(value)}</textarea>
-              <div class="row"><button class="primary" type="submit">${esc(button)}</button></div></form>`;
-        const body = !pending ? `<p class="answer">${esc(qq.a)}</p>`
+              <div class="row">${cancel}<button class="primary" type="submit">${esc(button)}</button></div></form>`;
+        const body = !pending
+          ? mode !== "api" ? `<p class="answer">${esc(qq.a)}</p>`
+            : isEditing ? form(qq.a, tr("answer.update"))
+            : `<p class="answer">${esc(qq.a)}</p><div class="row"><button type="button" class="link" data-edit-answer="${pos}">${esc(tr("answer.edit"))}</button></div>`
           : byAgent ? `<p class="no-answer">${esc(tr("answer.agent"))}</p>${mode === "api" ? form(qq.a, tr("answer.confirm")) : `<p class="answer">${esc(qq.a)}</p>`}`
           : mode === "api" ? form("", tr("answer.save"))
           : `<p class="no-answer">${esc(tr("answer.none"))}</p>`;
         const badgeText = !pending ? "" : byAgent ? tr("answer.badgeConfirm") : tr("answer.badgeNeeds");
-        return `<details class="qa" ${pending ? "open" : ""}>
+        return `<details class="qa" ${pending || isEditing ? "open" : ""}>
         <summary><span class="q-mark" aria-hidden="true">${esc(tr("q.mark"))}</span><span>${esc(qq.q)}</span>${badgeText ? `<span class="badge review">${esc(badgeText)}</span>` : ""}</summary>
         <div class="qa-body">${body}</div>
       </details>`;
@@ -737,10 +744,12 @@
     const [mi, ti, qi] = pos.split(".").map(Number);
     const q = data.milestones[mi].tasks[ti].questions[qi];
     try {
-      show(await api(`api/projects/${encodeURIComponent(projectId)}/questions`, {
+      const saved = await api(`api/projects/${encodeURIComponent(projectId)}/questions`, {
         method: "PATCH",
         body: JSON.stringify({ milestone: mi, task: ti, question: qi, q: q.q, answer }),
-      }));
+      });
+      editing.delete(pos);
+      show(saved);
       toast(tr("toast.answerSaved"));
       $(`t-${mi}.${ti}`)?.querySelector("[data-toggle]")?.focus({ preventScroll: true });
     } catch (err) {
@@ -797,6 +806,17 @@
     if (!el) { if (!e.target.closest(".step-menu, .info")) closeMenus(); return; }
     if (el.dataset.doc) { e.preventDefault(); return openDoc(el.dataset.doc, el.dataset.title); }
     if (el.hasAttribute("data-doc-retry")) { docCache.clear(); return lastDoc && openDoc(...lastDoc); }
+    if (el.dataset.editAnswer) {
+      editing.add(el.dataset.editAnswer); render();
+      return document.querySelector(`[data-answer="${el.dataset.editAnswer}"] textarea`)?.focus();
+    }
+    if (el.dataset.cancelAnswer) {
+      const pos = el.dataset.cancelAnswer;
+      editing.delete(pos); render();
+      const edit = document.querySelector(`[data-edit-answer="${pos}"]`);
+      for (let d = edit?.closest("details"); d; d = d.parentElement.closest("details")) d.open = true;
+      return edit?.focus();
+    }
     if (el.dataset.anchor !== undefined && el.closest("#reader")) { e.preventDefault(); return scrollToAnchor(el.dataset.anchor); }
     if (el.dataset.jump) { e.preventDefault(); return jumpTo(el.dataset.jump); }
     if (el.dataset.toggle) return toggle(el);

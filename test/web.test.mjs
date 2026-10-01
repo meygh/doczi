@@ -95,3 +95,10 @@ test("each step shows a small bar filled by what its status is worth", () => {
   assert.match(app, /WORTH\[status\]/);
   assert.match(css, /\.bar\.step-bar\s*\{[^}]*width:\s*\d+px/);
 });
+
+test("an answer you gave can be edited again from the dashboard", () => {
+  for (const part of ['data-edit-answer="${pos}"', 'data-cancel-answer="${pos}"', "editing.has(pos)"]) {
+    assert.ok(app.includes(part), part);
+  }
+  assert.match(app, /editing\.delete\(pos\);\s+show\(saved\);/, "a saved answer leaves edit mode");
+});
