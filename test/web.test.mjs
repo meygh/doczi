@@ -66,3 +66,39 @@ test("the dashboard downloads the plan as Markdown, CSV or JSON, with the shared
   assert.match(app, /docziExport\.markdown\(/);
   assert.match(app, /docziExport\.csv\(/);
 });
+
+test("milestone and task documents stay visible while their body is collapsed", () => {
+  const before = (needle, body) => {
+    const at = app.indexOf(needle), open = app.indexOf(body);
+    assert.ok(at > 0 && open > 0, `${needle} and ${body} are both in the page`);
+    assert.ok(at < open, `${needle} renders before ${body}, outside the collapsible part`);
+  };
+  before("chips(m.docs", 'class="ms-body"');
+  before("chips(t.docs", 'class="task-body"');
+});
+
+test("each task shows a small bar in its heading, next to its step count", () => {
+  const head = app.slice(app.indexOf('<div class="task-head">'), app.indexOf('class="task-body"'));
+  const bar = head.indexOf('barHtml(x.share, "task-bar"'), meta = head.indexOf('class="task-meta"');
+  assert.ok(bar > 0 && meta > 0, "the task bar and the step count are both in the heading");
+  const group = head.indexOf('class="task-progress"');
+  assert.ok(group > 0 && group < bar && bar < meta, "bar, then count, inside one inline group");
+  const w = css.match(/\.bar\.task-bar\s*\{[^}]*width:\s*(\d+)px/);
+  assert.ok(w && Number(w[1]) <= 120, "the task bar has a small fixed width");
+});
+
+test("each step shows a small bar filled by what its status is worth", () => {
+  const step = app.slice(app.indexOf("const steps = t.steps.map("), app.indexOf("const qaTitle"));
+  const bar = step.indexOf("stepBar(status)"), menu = step.indexOf('class="step-menu"');
+  assert.ok(bar > step.indexOf('type="checkbox"') && bar < menu, "the bar sits in the step row, before its menu");
+  assert.match(app, /const stepBar = \(status\) => `<span class="bar step-bar" aria-hidden="true">/);
+  assert.match(app, /WORTH\[status\]/);
+  assert.match(css, /\.bar\.step-bar\s*\{[^}]*width:\s*\d+px/);
+});
+
+test("an answer you gave can be edited again from the dashboard", () => {
+  for (const part of ['data-edit-answer="${pos}"', 'data-cancel-answer="${pos}"', "editing.has(pos)"]) {
+    assert.ok(app.includes(part), part);
+  }
+  assert.match(app, /editing\.delete\(pos\);\s+show\(saved\);/, "a saved answer leaves edit mode");
+});

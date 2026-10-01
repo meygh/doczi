@@ -69,7 +69,8 @@
           ],
           "questions": [
             {
-              "q": "Should doczi also be published to npm, or is installing from GitHub enough?"
+              "q": "Should doczi also be published to npm, or is installing from GitHub enough?",
+              "a": "Yes, I want to publish on npm as well"
             }
           ]
         },
@@ -79,7 +80,7 @@
             { "status": "done", "title": "Statuses: waiting for your check, blocked with reason" },
             { "status": "done", "title": "Questions and answers per task" },
             { "status": "done", "title": "Linked documents with a reader" },
-            { "status": "review", "title": "Collapsible tasks, status bar, search and filters" }
+            { "status": "done", "title": "Collapsible tasks, status bar, search and filters" }
           ]
         },
         {
@@ -97,7 +98,7 @@
             }
           ],
           "steps": [
-            { "status": "review", "title": "ADR: rename and legacy fallback until v0.3" },
+            { "status": "done", "title": "ADR: rename and legacy fallback until v0.3" },
             { "status": "done", "title": "Rename to doczi everywhere" },
             { "status": "done", "title": "Read legacy config, home and env with a notice" },
             { "status": "done", "title": "doczi migrate and legacy git hook replacement" },
@@ -176,7 +177,7 @@
             }
           ],
           "steps": [
-            { "status": "review", "title": "Interface strings, language menu and right-to-left layout" },
+            { "status": "done", "title": "Interface strings, language menu and right-to-left layout" },
             { "status": "review", "title": "Persian, German, Arabic, Turkish and Spanish translations" }
           ]
         },

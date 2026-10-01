@@ -198,6 +198,14 @@ for (const rt of RUNTIMES) {
       assert.equal(JSON.parse(fs.readFileSync(fx.demoFile, "utf8")).milestones[0].tasks[0].questions[0].a, "GitHub Actions");
     });
 
+    test("PATCH questions replaces an earlier answer", async () => {
+      const at = (answer) => request(port, "PATCH", "/api/projects/demo/questions", { body: { milestone: 0, task: 0, question: 0, q: "Which CI?", answer } });
+      assert.equal((await at("GitHub Actions")).status, 200);
+      const r = await at("GitLab CI");
+      assert.equal(r.status, 200, r.text);
+      assert.equal(r.json.milestones[0].tasks[0].questions[0].a, "GitLab CI");
+    });
+
     test("docs serves only documents the progress file links, inside the project", async () => {
       const doc = (p) => request(port, "GET", `/api/projects/demo/docs?path=${encodeURIComponent(p)}`);
       let r = await doc("docs/SRS.md");
