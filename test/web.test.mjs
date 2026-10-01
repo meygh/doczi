@@ -50,3 +50,12 @@ test("the Needs you panel collapses, hides and remembers it per project", () => 
   assert.match(app, /doczi\.attention\./);
   assert.match(app, /<details class="att-group" data-group="(\$\{[^}]+\}|blocked)"/);
 });
+
+test("the dashboard filters by task type and tag, and keeps them in the address", () => {
+  assert.match(html, /id="type-legend"[^>]*aria-label="Filter tasks by type"/);
+  assert.match(html, /id="tag-legend"[^>]*aria-label="Filter tasks by tag"/);
+  assert.match(app, /data-filter-type=/);
+  assert.match(app, /data-filter-tag=/);
+  assert.match(app, /p\.set\("type"/);
+  assert.match(app, /p\.set\("tags"/);
+});

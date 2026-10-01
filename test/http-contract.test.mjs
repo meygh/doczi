@@ -9,6 +9,7 @@ import net from "node:net";
 import os from "node:os";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
+import { format } from "../lib/progress.mjs";
 
 const repo = fileURLToPath(new URL("..", import.meta.url));
 
@@ -68,6 +69,8 @@ function makeFixture() {
       docs: [{ path: "docs/plan.txt" }],
       tasks: [{
         name: "Setup",
+        type: "feature",
+        tags: ["ci", "پرداخت"],
         steps: [{ status: "todo", title: "Repo" }, { status: "doing", title: "CI" }],
         questions: [{ q: "Which CI?", a: "Jenkins", by: "agent" }],
         docs: [{ title: "Huge", path: "docs/big.md" }],
@@ -149,6 +152,15 @@ for (const rt of RUNTIMES) {
       assert.match(text, /\n {12}\{ "status": "done", "title": "Repo" \},\n/);
       assert.equal(JSON.parse(text).updated, new Date().toISOString().slice(0, 10));
       assert.equal(JSON.parse(text).milestones[0].weight, 2);
+    });
+
+    test("a write keeps task types and tags, laid out exactly as every other writer does", async () => {
+      const r = await request(port, "PATCH", "/api/projects/demo/steps", { body: { milestone: 0, task: 0, step: 1, title: "CI", status: "review" } });
+      assert.equal(r.status, 200, r.text);
+      assert.equal(r.json.milestones[0].tasks[0].type, "feature");
+      assert.deepEqual(r.json.milestones[0].tasks[0].tags, ["ci", "پرداخت"]);
+      const text = fs.readFileSync(fx.demoFile, "utf8");
+      assert.equal(text, format(JSON.parse(text)));
     });
 
     test("PATCH refuses stale titles, bad statuses, bad positions and bad JSON", async () => {

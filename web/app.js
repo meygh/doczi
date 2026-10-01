@@ -9,6 +9,13 @@
   const $ = (id) => document.getElementById(id);
   const STATUSES = ["done", "review", "doing", "blocked", "todo"];
   const LABELS = { done: "Done", review: "Waiting for your check", doing: "In progress", blocked: "Blocked", todo: "Not started" };
+  // Task types, as in lib/progress.mjs.
+  const TYPE_LABELS = {
+    feature: "Feature", bug: "Bug", issue: "Issue", refinement: "Refinement", redesign: "Redesign",
+    chore: "Chore", docs: "Docs", research: "Research", security: "Security",
+  };
+  const typeOf = (t) => (Object.hasOwn(TYPE_LABELS, t.type) ? t.type : null);
+  const tagsOf = (t) => (Array.isArray(t.tags) ? t.tags.filter((x) => typeof x === "string" && x) : []);
   const WORTH = { done: 1, review: 0.75, doing: 0.5, blocked: 0, todo: 0 };
   const DOC_ICON = '<svg class="doc-icon" viewBox="0 0 16 16" aria-hidden="true"><path fill="currentColor" d="M4 1h5l4 4v9a1 1 0 0 1-1 1H4a1 1 0 0 1-1-1V2a1 1 0 0 1 1-1zm4.5 1.5V6H12M5 8h6v1H5zm0 2.5h6v1H5z"/></svg>';
   const esc = (s) => String(s ?? "").replace(/[&<>"']/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c]));
@@ -108,7 +115,7 @@
     storage.set("progress-project", id);
     if (fresh) {
       view.page = null; openTasks.clear(); openMilestones.clear(); docCache.clear();
-      if (!fromUrl) { filters.statuses.clear(); filters.query = ""; $("search").value = ""; }
+      if (!fromUrl) clearFilters();
     }
     if (!$("app").hidden) $("app").setAttribute("aria-busy", "true");
     try { show(await api(`api/projects/${encodeURIComponent(id)}/progress`)); }
@@ -293,7 +300,18 @@
   const filters = {
     statuses: new Set((initial.get("status") || "").split(",").filter((s) => STATUSES.includes(s))),
     query: (initial.get("q") || "").trim().toLowerCase(),
+    types: new Set((initial.get("type") || "").split(",").filter((t) => Object.hasOwn(TYPE_LABELS, t))),
+    tags: new Set((initial.get("tags") || "").split(",").filter(Boolean)),
   };
+  const isFiltering = () => filters.statuses.size > 0 || Boolean(filters.query) || filters.types.size > 0 || filters.tags.size > 0;
+  function clearFilters() {
+    filters.statuses.clear(); filters.types.clear(); filters.tags.clear();
+    filters.query = ""; $("search").value = "";
+  }
+  // A task passes the type and tag filters when it has one of the chosen types (if any) and one
+  // of the chosen tags (if any).
+  const labelsMatch = (t) => (!filters.types.size || filters.types.has(typeOf(t)))
+    && (!filters.tags.size || tagsOf(t).some((x) => filters.tags.has(x)));
   $("search").value = initial.get("q") || "";
   const openMilestones = new Map(); // mi → bool
   const openTasks = new Map();      // "mi.ti" → bool
@@ -307,6 +325,8 @@
     if (mode === "file" && dataFile !== "milestones.json") p.set("data", dataFile);
     if (filters.statuses.size) p.set("status", [...filters.statuses].join(","));
     if (filters.query) p.set("q", $("search").value.trim());
+    if (filters.types.size) p.set("type", [...filters.types].join(","));
+    if (filters.tags.size) p.set("tags", [...filters.tags].join(","));
     const qs = p.toString();
     history.replaceState(null, "", `${location.pathname}${qs ? "?" + qs : ""}${hash || ""}`);
   }
@@ -376,22 +396,24 @@
     if (!q) return { task: true, steps: new Set() };
     const has = (v) => String(v || "").toLowerCase().includes(q);
     const steps = new Set(t.steps.map((s, si) => (has(s.title) || has(reasonOf(s)) ? si : -1)).filter((x) => x >= 0));
-    const task = has(t.name) || has(m.name) || has(m.id) || steps.size > 0 || (t.questions || []).some((x) => has(x.q) || has(x.a)) || has(t.note);
+    const task = has(t.name) || has(m.name) || has(m.id) || steps.size > 0 || (t.questions || []).some((x) => has(x.q) || has(x.a)) || has(t.note)
+      || has(typeOf(t) && TYPE_LABELS[typeOf(t)]) || tagsOf(t).some((x) => has(x) || has("#" + x));
     return { task, steps };
   }
 
   // A stable description of what has focus, so a rebuild can put focus back.
   function focusMemo() {
     const a = document.activeElement;
-    if (!a || a === document.body || !container.contains(a) && !$("legend").contains(a) && !$("pager").contains(a) && !$("attention").contains(a)) return null;
-    for (const attr of ["data-step", "data-filter", "data-page", "data-menu", "data-toggle"]) {
+    if (!a || a === document.body || !container.contains(a) && !$("legend").contains(a) && !$("labels-filter").contains(a) && !$("pager").contains(a) && !$("attention").contains(a)) return null;
+    for (const attr of ["data-step", "data-filter", "data-filter-type", "data-filter-tag", "data-page", "data-menu", "data-toggle"]) {
       if (a.hasAttribute(attr)) return { sel: `[${attr}="${CSS.escape(a.getAttribute(attr))}"]`, task: a.closest(".task")?.id, ms: a.closest("section.ms")?.id };
     }
     return { sel: null, task: a.closest(".task")?.id, ms: a.closest("section.ms")?.id };
   }
   function restoreFocus(memo) {
     if (!memo) return;
-    const target = (memo.sel && document.querySelector(memo.sel))
+    // The same tag can be in the overview and in several tasks: look in the task first.
+    const target = (memo.sel && ((memo.task && document.querySelector(`#${CSS.escape(memo.task)} ${memo.sel}`)) || document.querySelector(memo.sel)))
       || (memo.task && document.querySelector(`#${CSS.escape(memo.task)} [data-toggle]`))
       || (memo.ms && document.querySelector(`#${CSS.escape(memo.ms)} [data-toggle]`));
     target?.focus({ preventScroll: true });
@@ -423,10 +445,22 @@
       `<li><button type="button" data-filter="${k}" aria-pressed="${filters.statuses.has(k)}"><span class="dot ${k}" aria-hidden="true"></span>${esc(LABELS[k])} <span class="count">(${c.tasks[k]})</span></button></li>`).join("");
     $("clear-filter").hidden = !filters.statuses.size;
 
+    // Types and tags in use, as filter buttons (hidden when no task has any).
+    const typeCount = {}, tagCount = new Map();
+    for (const ms of s.milestones) for (const x of ms.tasks) {
+      if (typeOf(x.t)) typeCount[typeOf(x.t)] = (typeCount[typeOf(x.t)] || 0) + 1;
+      for (const tag of tagsOf(x.t)) tagCount.set(tag, (tagCount.get(tag) || 0) + 1);
+    }
+    $("type-legend").innerHTML = Object.keys(TYPE_LABELS).filter((k) => typeCount[k]).map((k) =>
+      `<li><button type="button" data-filter-type="${k}" aria-pressed="${filters.types.has(k)}"><span class="type-mark ${k}" aria-hidden="true"></span>${esc(TYPE_LABELS[k])} <span class="count">(${typeCount[k]})</span></button></li>`).join("");
+    $("tag-legend").innerHTML = [...tagCount].sort((a, b) => b[1] - a[1] || a[0].localeCompare(b[0])).map(([k, n]) =>
+      `<li><button type="button" class="tag" data-filter-tag="${esc(k)}" aria-pressed="${filters.tags.has(k)}">#<bdi>${esc(k)}</bdi> <span class="count">(${n})</span></button></li>`).join("");
+    $("labels-filter").hidden = !Object.keys(typeCount).length && !tagCount.size;
+
     renderAttention(s);
 
     // Milestones
-    const filtering = filters.statuses.size > 0 || Boolean(filters.query);
+    const filtering = isFiltering();
     const hideDone = $("hide-done").checked;
     const pool = hideDone && !filtering ? s.milestones.filter((x) => x.status !== "done") : s.milestones;
     const pages = Math.max(1, Math.ceil(pool.length / view.perPage));
@@ -440,7 +474,7 @@
       const m = ms.m;
       const tasks = ms.tasks.map((x) => {
         const q = matchesQuery(m, x.t);
-        const hidden = !q.task || (filters.statuses.size && !filters.statuses.has(x.status));
+        const hidden = !q.task || (filters.statuses.size && !filters.statuses.has(x.status)) || !labelsMatch(x.t);
         if (!hidden) visibleTasks++;
         return { x, q, hidden };
       });
@@ -472,6 +506,8 @@
       const parts = [];
       if (filters.query) parts.push(`matching “${esc($("search").value.trim())}”`);
       if (filters.statuses.size) parts.push(`with status ${[...filters.statuses].map((k) => esc(LABELS[k])).join(" or ")}`);
+      if (filters.types.size) parts.push(`of type ${[...filters.types].map((k) => esc(TYPE_LABELS[k])).join(" or ")}`);
+      if (filters.tags.size) parts.push(`tagged ${[...filters.tags].map((k) => "#" + esc(k)).join(" or ")}`);
       $("filter-note").innerHTML = `Showing ${visibleTasks} task${visibleTasks === 1 ? "" : "s"} ${parts.join(" and ")}. <button class="link" data-clear>Clear</button>`;
     }
 
@@ -479,6 +515,14 @@
     $("notice").classList.toggle("show", mode === "file" && changes > 0);
     $("notice-text").textContent = `You changed ${changes} step${changes === 1 ? "" : "s"} in this browser. ${dataFile} itself hasn't changed yet.`;
     restoreFocus(memo);
+  }
+
+  // A task's type and tags; tags are buttons that filter by themselves.
+  function labelsHtml(t) {
+    const type = typeOf(t), tags = tagsOf(t);
+    if (!type && !tags.length) return "";
+    return `<span class="labels">${type ? `<span class="type-badge"><span class="type-mark ${type}" aria-hidden="true"></span>${esc(TYPE_LABELS[type])}</span>` : ""}` +
+      tags.map((k) => `<button type="button" class="tag" data-filter-tag="${esc(k)}" aria-pressed="${filters.tags.has(k)}" aria-label="Show tasks tagged ${esc(k)}">#<bdi>${esc(k)}</bdi></button>`).join("") + "</span>";
   }
 
   function renderTask(ms, x, q, hidden) {
@@ -517,7 +561,7 @@
       <div class="task-head">
         <div class="title-row">
           <h3 class="task-title"><button type="button" class="toggle" data-toggle="t-${key}" aria-expanded="${Boolean(open)}" aria-controls="tb-${key}"><span class="chev" aria-hidden="true">▸</span><span class="label">${esc(t.name)}</span></button></h3>
-          ${badge(x.status)}${info(x.reasons, "task")}${qBadge}
+          ${badge(x.status)}${info(x.reasons, "task")}${qBadge}${labelsHtml(t)}
         </div>
         <span class="task-meta">${x.done}/${t.steps.length} · ${x.percent}%</span>
       </div>
@@ -618,8 +662,8 @@
     openMilestones.set(mi, true);
     if (m[3] !== undefined) openTasks.set(`${mi}.${m[3]}`, true);
     if (!document.getElementById(id) || document.getElementById(id).classList.contains("filtered-out")) {
-      if (filters.statuses.size || filters.query) {
-        filters.statuses.clear(); filters.query = ""; $("search").value = "";
+      if (isFiltering()) {
+        clearFilters();
         toast("Cleared the search and filters to show it.");
       }
       if ($("hide-done").checked && summary.milestones[mi].status === "done") { $("hide-done").checked = false; applyHide(); }
@@ -750,8 +794,14 @@
       if (el.dataset.filterOnly) container.scrollIntoView({ behavior: motion(), block: "start" });
       return;
     }
+    if (el.dataset.filterType !== undefined || el.dataset.filterTag !== undefined) {
+      const [set, k] = el.dataset.filterType !== undefined ? [filters.types, el.dataset.filterType] : [filters.tags, el.dataset.filterTag];
+      if (set.has(k)) set.delete(k); else set.add(k);
+      render(); syncUrl("");
+      return;
+    }
     if (el.id === "clear-filter" || el.hasAttribute("data-clear")) {
-      filters.statuses.clear(); filters.query = ""; $("search").value = "";
+      clearFilters();
       render(); syncUrl("");
       return $("search").focus();
     }

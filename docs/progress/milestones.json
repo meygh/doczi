@@ -150,7 +150,7 @@
             }
           ],
           "steps": [
-            { "status": "todo", "title": "Types and tags in model, schema, servers, CLI, MCP and filters" }
+            { "status": "done", "title": "Types and tags in model, schema, servers, CLI, MCP and filters" }
           ]
         },
         {

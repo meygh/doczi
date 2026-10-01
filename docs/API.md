@@ -39,6 +39,8 @@ See [ADR 0001](adr/0001-rename-to-doczi.md).
       "tasks": [
         {
           "name": "Repository and tooling",
+          "type": "chore",
+          "tags": ["ci", "tooling"],
           "docs": [{ "title": "Plan", "path": "docs/plans/m0.md" }],
           "questions": [{ "q": "Which CI service?", "a": "GitHub Actions" }, { "q": "Sign images?" }],
           "steps": [
@@ -70,6 +72,15 @@ from their tasks the same way. Percentages are never stored.
 style), must stay inside the project and may not contain `:`. Only `.md`, `.markdown` and `.txt` files open in the
 reader. Schema: `templates/progress/progress.schema.json`.
 
+A task may carry a `type` and `tags`. Neither changes progress.
+
+- `type` is one of `feature`, `bug`, `issue`, `refinement`, `redesign`, `chore`,
+  `docs`, `research` or `security`.
+- `tags` is a list of up to 10 tags. Each tag is lower case, has no spaces, and has up to 30
+  letters (of any script), digits or inner hyphens. A tag appears once per task.
+
+The dashboard filters tasks by both. Every writer keeps them as they are.
+
 ## MCP tools
 
 | Tool | Arguments | Result |
@@ -78,6 +89,7 @@ reader. Schema: `templates/progress/progress.schema.json`.
 | `progress_list` | `project?`, `milestone?` | Every task and step with status and number, plus questions |
 | `progress_set_status` | `project?`, `milestone`, `task`, `step`, `status`, `reason?` | `M0 › Task › Step: todo → doing` |
 | `progress_add_step` | `project?`, `milestone`, `task`, `title`, `status?` | Confirmation |
+| `progress_label_task` | `project?`, `milestone`, `task`, `type?` (a type or `none`), `tags?` (replaces), `add?`, `remove?` | `M0 › Task: [bug] #ui #api` |
 | `progress_ask` | `project?`, `milestone`, `task`, `question` | Records a question for the user |
 | `progress_answer` | `project?`, `milestone`, `task`, `question`, `answer` | Records an answer the user gave, marked `"by": "agent"` until the user confirms it in the dashboard |
 | `projects_list` | — | Registered projects |

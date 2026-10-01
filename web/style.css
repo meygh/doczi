@@ -110,6 +110,17 @@ textarea { width: 100%; padding: 8px 10px; resize: vertical; min-height: 64px; }
 .legend button { display: inline-flex; align-items: center; gap: 8px; padding: 5px 10px; border-radius: 99px; font-size: 13px; }
 .legend button[aria-pressed="true"] { background: var(--raised); color: var(--text); border-color: var(--text); }
 .legend .count { font-variant-numeric: tabular-nums; color: var(--muted); }
+/* Task types and tags */
+.labels-filter { margin-top: 14px; }
+.labels-filter h3 { font-size: 13px; color: var(--muted); font-weight: 600; margin: 0; }
+.labels-filter .legend { margin-top: 8px; }
+.labels { display: inline-flex; flex-wrap: wrap; gap: 4px 6px; align-items: center; }
+.type-badge { display: inline-flex; align-items: center; gap: 6px; font-size: 12px; padding: 2px 8px; border-radius: 99px; border: 1px solid var(--line); color: var(--text); }
+.type-mark { width: 8px; height: 8px; border-radius: 2px; flex: none; display: inline-block; background: var(--todo); }
+.type-mark.feature { background: var(--done); } .type-mark.bug, .type-mark.security { background: var(--blocked); }
+.type-mark.refinement, .type-mark.redesign { background: var(--review); } .type-mark.issue { background: var(--doing); }
+button.tag { font-size: 12px; padding: 2px 8px; border-radius: 99px; color: var(--muted); }
+button.tag[aria-pressed="true"] { color: var(--text); border-color: var(--text); background: var(--raised); }
 .dot { width: 10px; height: 10px; border-radius: 50%; flex: none; display: inline-block; }
 .dot.done { background: var(--done); } .dot.review { background: var(--review); } .dot.doing { background: var(--doing); }
 .dot.blocked { background: var(--blocked); } .dot.todo { background: var(--todo); }

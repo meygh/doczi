@@ -6,7 +6,7 @@ import path from "node:path";
 import readline from "node:readline";
 import { fileURLToPath } from "node:url";
 import { RULE_MODULES } from "../lib/config.mjs";
-import { addQuestion, addStep, answerQuestion, setStatus, STATUSES } from "../lib/progress.mjs";
+import { addQuestion, addStep, answerQuestion, labelTask, labelText, setStatus, STATUSES, TASK_TYPES } from "../lib/progress.mjs";
 import { get as getProject, list as listProjects } from "../lib/registry.mjs";
 import { DATA_LABEL, listText, summaryText } from "../lib/report.mjs";
 import { openProject, readProgress, updateProgress } from "../lib/store.mjs";
@@ -105,6 +105,25 @@ ${listText(readProgress(openProject(a.project)), a.milestone)}`,
     run: (a) => {
       const r = updateProgress(writableProject(a.project), (d) => addStep(d, a));
       return `Added "${r.step}" (${r.status}) to ${r.milestone} › ${r.task}.`;
+    },
+  },
+  {
+    name: "progress_label_task",
+    description: "Set a task's type (or \"none\" to clear it) and replace, add or remove its tags. Tags are lower case without spaces.",
+    inputSchema: {
+      type: "object",
+      required: ["milestone", "task"],
+      properties: {
+        project, milestone: { type: "string" }, task: { type: "string" },
+        type: { type: "string", enum: [...TASK_TYPES, "none"] },
+        tags: { type: "array", items: { type: "string" }, description: "Replaces all tags." },
+        add: { type: "array", items: { type: "string" } },
+        remove: { type: "array", items: { type: "string" } },
+      },
+    },
+    run: (a) => {
+      const r = updateProgress(writableProject(a.project), (d) => labelTask(d, { ...a, add: a.add || [], remove: a.remove || [] }));
+      return `${r.milestone} › ${r.task.name}: ${labelText(r.task) || "no type or tags"}`;
     },
   },
   {

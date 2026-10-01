@@ -7,7 +7,7 @@ import { fileURLToPath } from "node:url";
 import { isAllowed, scanText } from "../lib/ai-terms.mjs";
 import { configFile as findConfigFile, DEFAULT_CONFIG, findRoot, loadConfig, RULE_MODULES } from "../lib/config.mjs";
 import { CONFIG_FILE, env, home, LEGACY_CONFIG_FILE, legacyHome } from "../lib/names.mjs";
-import { addQuestion, addStep, answerQuestion, format, parse, setStatus } from "../lib/progress.mjs";
+import { addQuestion, addStep, answerQuestion, format, labelTask, labelText, parse, setStatus, TASK_TYPES } from "../lib/progress.mjs";
 import { list, register, unregister } from "../lib/registry.mjs";
 import { clean, listText, summaryText } from "../lib/report.mjs";
 import { occupied } from "../lib/fsutil.mjs";
@@ -32,6 +32,9 @@ Usage: doczi <command> [options]
                              status: done, review (waiting for a check), doing,
                              blocked (needs --reason) or todo
       add <milestone> <task> "<step title>" [--status doing]
+      label <milestone> <task> [--type <type>|none] [--add a,b] [--remove c] [--tags a,b]
+                             type: feature, bug, issue, refinement, redesign, chore,
+                             docs, research or security; tags: lower case, no spaces
       ask <milestone> <task> "<question>"
       answer <milestone> <task> <question number or text> "<answer>"
       --project <id|path>    Another project than the current one
@@ -157,7 +160,17 @@ function progress(args) {
     const r = updateProgress(project, (d) => addStep(d, { milestone, task, title, status: args.flags.status || "todo" }));
     return say(`Added "${r.step}" (${r.status}) to ${r.milestone} › ${r.task}.`);
   }
-  if (sub) throw new UsageError(`Unknown progress command "${sub}". Use set, add, ask or answer, or nothing for the summary.`);
+  if (sub === "label") {
+    const [milestone, task] = rest;
+    const list = (flag) => (typeof args.flags[flag] === "string" ? args.flags[flag].split(",").filter((x) => x.trim()) : undefined);
+    const type = typeof args.flags.type === "string" ? args.flags.type : undefined;
+    if (!task || (type === undefined && !list("tags") && !list("add") && !list("remove"))) {
+      throw new UsageError(`Usage: doczi progress label <milestone> <task> [--type ${TASK_TYPES.join("|")}|none] [--add a,b] [--remove c] [--tags a,b]`);
+    }
+    const r = updateProgress(project, (d) => labelTask(d, { milestone, task, type, tags: list("tags"), add: list("add") || [], remove: list("remove") || [] }));
+    return say(`${r.milestone} › ${r.task.name}: ${labelText(r.task) || "no type or tags"}`);
+  }
+  if (sub) throw new UsageError(`Unknown progress command "${sub}". Use set, add, ask, answer or label, or nothing for the summary.`);
   const data = readProgress(project);
   if (args.flags.all || args.flags.milestone) return say(listText(data, typeof args.flags.milestone === "string" ? args.flags.milestone : undefined));
   say(summaryText(data));
