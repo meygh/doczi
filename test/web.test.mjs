@@ -52,8 +52,8 @@ test("the Needs you panel collapses, hides and remembers it per project", () => 
 });
 
 test("the dashboard filters by task type and tag, and keeps them in the address", () => {
-  assert.match(html, /id="type-legend"[^>]*aria-label="Filter tasks by type"/);
-  assert.match(html, /id="tag-legend"[^>]*aria-label="Filter tasks by tag"/);
+  assert.match(html, /id="type-legend"[^>]*data-i18n-attr="aria-label:filter\.byType"/);
+  assert.match(html, /id="tag-legend"[^>]*data-i18n-attr="aria-label:filter\.byTag"/);
   assert.match(app, /data-filter-type=/);
   assert.match(app, /data-filter-tag=/);
   assert.match(app, /p\.set\("type"/);

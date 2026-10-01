@@ -254,6 +254,8 @@ for (const rt of RUNTIMES) {
       assert.match((await request(port, "GET", "/app.js")).headers["content-type"], /javascript/);
       assert.match((await request(port, "GET", "/markdown.js")).headers["content-type"], /javascript/);
       assert.match((await request(port, "GET", "/export.js")).headers["content-type"], /javascript/);
+      for (const f of ["/i18n.js", "/i18n/en.js", "/i18n/fa.js", "/i18n/ar.js", "/i18n/de.js", "/i18n/es.js", "/i18n/tr.js"]) assert.match((await request(port, "GET", f)).headers["content-type"], /javascript/, f);
+      assert.equal((await request(port, "GET", "/i18n/xx.js")).status, 404);
       const bad = await request(port, "GET", "/api/projects/%E0%A4%A/progress");
       assert.ok([400, 404].includes(bad.status), `bad encoding gave ${bad.status}`);
       assert.match(bad.headers["content-type"], /application\/json/);

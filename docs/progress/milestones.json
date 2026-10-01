@@ -176,8 +176,8 @@
             }
           ],
           "steps": [
-            { "status": "todo", "title": "Interface strings, language menu and right-to-left layout" },
-            { "status": "todo", "title": "Persian, German, Arabic, Turkish and Spanish translations" }
+            { "status": "review", "title": "Interface strings, language menu and right-to-left layout" },
+            { "status": "review", "title": "Persian, German, Arabic, Turkish and Spanish translations" }
           ]
         },
         {

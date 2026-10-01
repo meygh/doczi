@@ -95,6 +95,13 @@ flowchart LR
 - A document reader that renders Markdown and jumps to the linked section.
 - Search (`/`), shareable links, light, dark and system themes, phone layout, keyboard and
   screen-reader support.
+- **Six interface languages:** English, Persian, Arabic, German, Spanish and Turkish.
+  - The page follows the browser's language; a menu in the top bar changes it.
+  - Persian and Arabic read right to left.
+  - Numbers and dates follow the language. Persian, for example, gets Persian digits and the
+    Solar Hijri calendar.
+  - The strings are in `web/i18n/<code>.js`. To add a language, add a file there with the same
+    keys as `en.js`; a test checks that the keys and placeholders match.
 
 **Optional, pinned upstream plugins** in the same marketplace:
 [ui-ux-pro-max](https://github.com/nextlevelbuilder/ui-ux-pro-max-skill) (MIT) for design

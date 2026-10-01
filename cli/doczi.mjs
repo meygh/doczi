@@ -16,7 +16,7 @@ import { occupied } from "../lib/fsutil.mjs";
 import { assertInside, openProject, readProgress, updateProgress, writeFileAtomic } from "../lib/store.mjs";
 
 const PACKAGE_ROOT = path.resolve(fileURLToPath(new URL("..", import.meta.url)));
-const WEB_FILES = ["index.html", "app.js", "markdown.js", "export.js", "theme.js", "style.css"];
+const WEB_FILES = ["index.html", "app.js", "markdown.js", "export.js", "i18n.js", "i18n/en.js", "i18n/fa.js", "i18n/ar.js", "i18n/de.js", "i18n/es.js", "i18n/tr.js", "theme.js", "style.css"];
 
 const HELP = `doczi — working rules, skills and progress tracking for your projects
 
