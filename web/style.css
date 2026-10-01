@@ -93,7 +93,7 @@ textarea { width: 100%; padding: 8px 10px; resize: vertical; min-height: 64px; }
 .bar { height: 8px; background: var(--track); border-radius: 99px; overflow: hidden; display: flex; }
 .bar.thick { height: 14px; }
 .bar.thin { height: 5px; }
-.bar.task { height: 8px; }
+.bar.task-bar { height: 8px; }
 /* A gap between segments, so neighbouring colours never rely on hue alone. */
 .bar i + i { border-inline-start: 2px solid var(--card); }
 .bar i, .dist i { display: block; height: 100%; transition: width .35s ease; }

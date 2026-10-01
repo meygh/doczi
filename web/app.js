@@ -521,7 +521,7 @@
         </div>
         <span class="task-meta">${x.done}/${t.steps.length} · ${x.percent}%</span>
       </div>
-      ${barHtml(x.share, "task", t.name, x.n)}
+      ${barHtml(x.share, "task-bar", t.name, x.n)}
       <div class="task-body" id="tb-${key}" ${open ? "" : "hidden"}>
         ${chips(t.docs, `${t.name} documents`)}
         ${t.steps.length ? `<ul class="steps">${steps}</ul>` : '<p class="empty">No steps yet.</p>'}

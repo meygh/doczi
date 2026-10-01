@@ -28,9 +28,19 @@ test("bar colours keep 3:1 against the track and the card in both themes", () =>
 });
 
 test("task bars are at least 8px high and the page explains the bar colours", () => {
-  const h = css.match(/\.bar\.task\s*\{[^}]*height:\s*(\d+)px/);
-  assert.ok(h && Number(h[1]) >= 8, "a .bar.task rule with a height of 8px or more");
-  assert.match(app, /barHtml\(x\.share, "task"/);
+  const h = css.match(/\.bar\.task-bar\s*\{[^}]*height:\s*(\d+)px/);
+  assert.ok(h && Number(h[1]) >= 8, "a .bar.task-bar rule with a height of 8px or more");
+  assert.match(app, /barHtml\(x\.share, "task-bar"/);
+});
+
+test("a bar's classes never pick up the layout rules of other components", () => {
+  // A bar class that is also a component class (".task", ".ms", …) inherits its padding and
+  // border, which squeezes the fill to nothing.
+  const used = [...app.matchAll(/barHtml\([^,]+, "([^"]*)"/g)].flatMap((m) => m[1].split(/\s+/)).filter(Boolean);
+  for (const cls of used) {
+    const own = new RegExp(`(^|[\\s,}])\\.${cls.replace(/-/g, "\\-")}\\s*[{,]`, "m");
+    assert.doesNotMatch(css, own, `.${cls} is styled on its own, outside .bar`);
+  }
   assert.match(html, /id="bar-key"/);
 });
 
