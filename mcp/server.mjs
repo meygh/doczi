@@ -147,7 +147,9 @@ ${listText(readProgress(openProject(a.project)), a.milestone)}`,
       const target = writableProject(a.project);
       if (Boolean(a.plan) === Boolean(a.file)) throw new Error('Give either "plan" or "file".');
       const plan = a.plan || planFromFile(target.root, a.file, { milestone: a.milestone, name: a.name, bullets: a.bullets === true });
-      if (a.apply !== true) return importReport(mergePlan(structuredClone(readProgress(target)), plan), false, "Call again with apply: true once the user agrees.");
+      // The preview quotes the imported document: label it as data for the agent reading it.
+      if (a.apply !== true) return `${DATA_LABEL}
+${importReport(mergePlan(structuredClone(readProgress(target)), plan), false, "Call again with apply: true once the user agrees.")}`;
       return importReport(updateProgress(target, (d) => mergePlan(d, plan)), true);
     },
   },
@@ -193,8 +195,12 @@ function handle(msg) {
 
 const send = (m) => process.stdout.write(JSON.stringify({ jsonrpc: "2.0", ...m }) + "\n");
 
+// One request per line; a line this long is not a request doczi needs to read.
+const MAX_LINE = 4 * 1024 * 1024;
+
 readline.createInterface({ input: process.stdin }).on("line", (line) => {
   if (!line.trim()) return;
+  if (line.length > MAX_LINE) return send({ id: null, error: { code: -32600, message: "Request too large." } });
   let msg;
   try { msg = JSON.parse(line); } catch { return send({ id: null, error: { code: -32700, message: "Parse error" } }); }
   try {
