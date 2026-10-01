@@ -15,9 +15,16 @@ const has = (cmd, args) => spawnSync(cmd, args, { encoding: "utf8" }).status ===
 const hasPhp = has("php", ["-v"]);
 
 const LAUNCHERS = [
-  { name: "PowerShell", available: process.platform === "win32", run: (args, opts) => spawnSync("powershell", ["-NoProfile", "-ExecutionPolicy", "Bypass", "-File", path.join(repo, "serve.ps1"), ...args.map(psArg)], opts) },
-  { name: "Bash", available: has("bash", ["-c", "exit 0"]), run: (args, opts) => spawnSync("bash", [path.join(repo, "serve"), ...args], opts) },
+  {
+    name: "PowerShell", available: process.platform === "win32",
+    run: (args, opts) => spawnSync("powershell", ["-NoProfile", "-ExecutionPolicy", "Bypass", "-File", path.join(repo, "serve.ps1"), ...args.map(psArg)], opts),
+    idle: () => spawnSync("powershell", ["-NoProfile", "-Command", "exit 0"]),
+  },
+  { name: "Bash", available: has("bash", ["-c", "exit 0"]), run: (args, opts) => spawnSync("bash", [path.join(repo, "serve"), ...args], opts), idle: () => spawnSync("bash", ["-c", "exit 0"]) },
 ];
+// How long the shell itself takes to start and stop: on a cold CI machine PowerShell alone can
+// take seconds, so the launcher's own time is what is left after that.
+const shellMs = (launcher) => { const t = Date.now(); launcher.idle(); return Date.now() - t; };
 // Same mapping as the CLI's toPsArgs.
 function psArg(a) {
   const names = { "--runtime": "-Runtime", "--port": "-Port", "--no-open": "-NoOpen", "--open": "-Open", "--setup": "-Setup", "--reset": "-Reset", "--dry-run": "-DryRun" };
@@ -41,8 +48,9 @@ for (const launcher of LAUNCHERS) {
       return { home, run, conf: path.join(home, "serve.conf") };
     };
 
-    test("the first start asks nothing and uses the defaults", () => {
+    test("the first start asks nothing and uses the defaults, without a slow start", () => {
       const { run, conf } = setup();
+      const idle = shellMs(launcher);
       const t = Date.now();
       const r = run("--dry-run");
       const ms = Date.now() - t;
@@ -50,7 +58,8 @@ for (const launcher of LAUNCHERS) {
       assert.match(r.out, /Would serve with node on port \d+, opening the browser/);
       assert.match(r.out, /--setup/);
       assert.equal(fs.existsSync(conf), false, "defaults are not saved");
-      assert.ok(ms < 3000, `took ${ms} ms`);
+      // The old launcher spent over 4 s probing ports on Windows; the new one needs well under 1.5 s.
+      assert.ok(ms - idle < 1500, `took ${ms} ms, of which the shell itself ${idle} ms`);
     });
 
     test("saved settings are used without questions, and flags change only this run", () => {
