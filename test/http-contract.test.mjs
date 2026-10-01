@@ -52,11 +52,11 @@ function request(port, method, url, { body, headers = {} } = {}) {
 }
 
 function makeFixture() {
-  const home = fs.mkdtempSync(path.join(os.tmpdir(), "solo-keel-http-"));
+  const home = fs.mkdtempSync(path.join(os.tmpdir(), "doczi-http-"));
   const mk = (name, config, progress) => {
     const dir = path.join(home, name);
     fs.mkdirSync(path.join(dir, "docs", "progress"), { recursive: true });
-    if (config) fs.writeFileSync(path.join(dir, ".solo-keel.json"), JSON.stringify(config));
+    if (config) fs.writeFileSync(path.join(dir, ".doczi.json"), JSON.stringify(config));
     if (progress) fs.writeFileSync(path.join(dir, "docs/progress/milestones.json"), JSON.stringify(progress, null, 2));
     return dir;
   };
@@ -90,6 +90,19 @@ function makeFixture() {
   return { home, demoFile: path.join(demo, "docs/progress/milestones.json") };
 }
 
+async function startServer(rt, port, env) {
+  const [cmd, args] = rt.cmd(port);
+  const proc = spawn(cmd, args, { env, stdio: ["ignore", "ignore", "pipe"] });
+  let stderr = "";
+  proc.stderr.on("data", (d) => (stderr += d));
+  for (let i = 0; i < 100; i++) {
+    try { if ((await request(port, "GET", "/api/health")).status === 200) return proc; } catch { /* not up yet */ }
+    await new Promise((r) => setTimeout(r, 100));
+  }
+  proc.kill();
+  throw new Error(`${rt.name} server did not start: ${stderr}`);
+}
+
 for (const rt of RUNTIMES) {
   describe(`HTTP contract on ${rt.name}`, { skip: rt.available ? false : `${rt.name} is not installed` }, () => {
     let proc, port, fx;
@@ -97,15 +110,7 @@ for (const rt of RUNTIMES) {
     before(async () => {
       fx = makeFixture();
       port = await freePort();
-      const [cmd, args] = rt.cmd(port);
-      proc = spawn(cmd, args, { env: { ...process.env, SOLO_KEEL_HOME: fx.home, SOLO_KEEL_PORT: String(port), SOLO_KEEL_LOCK_TIMEOUT_MS: "700" }, stdio: ["ignore", "ignore", "pipe"] });
-      let stderr = "";
-      proc.stderr.on("data", (d) => (stderr += d));
-      for (let i = 0; i < 100; i++) {
-        try { if ((await request(port, "GET", "/api/health")).status === 200) return; } catch { /* not up yet */ }
-        await new Promise((r) => setTimeout(r, 100));
-      }
-      throw new Error(`${rt.name} server did not start: ${stderr}`);
+      proc = await startServer(rt, port, { ...process.env, DOCZI_HOME: fx.home, DOCZI_PORT: String(port), DOCZI_LOCK_TIMEOUT_MS: "700" });
     });
     after(() => proc?.kill());
 
@@ -189,7 +194,7 @@ for (const rt of RUNTIMES) {
       assert.equal((await doc("docs/SRS.md#goals")).status, 200);
       assert.equal((await doc("docs/plan.txt")).json.text, "Plan text");
       assert.equal((await doc("docs/big.md")).status, 413);
-      for (const p of ["docs/secret.md", "../demo/docs/SRS.md", "docs/../docs/SRS.md", "C:/Windows/win.ini", "/etc/passwd", ".solo-keel.json", "", "docs/SRS.md:hidden.md", "docs/SRS.md::$DATA"]) {
+      for (const p of ["docs/secret.md", "../demo/docs/SRS.md", "docs/../docs/SRS.md", "C:/Windows/win.ini", "/etc/passwd", ".doczi.json", "", "docs/SRS.md:hidden.md", "docs/SRS.md::$DATA"]) {
         assert.equal((await doc(p)).status, 404, p);
       }
     });
@@ -244,4 +249,46 @@ for (const rt of RUNTIMES) {
       }
     });
   });
+}
+
+// Until v0.3 the servers still read the solo-keel registry home, SOLO_KEEL_HOME and a
+// project's .solo-keel.json (docs/adr/0001-rename-to-doczi.md).
+for (const rt of RUNTIMES) {
+  for (const mode of ["default home", "SOLO_KEEL_HOME"]) {
+    describe(`legacy names on ${rt.name} (${mode})`, { skip: rt.available ? false : `${rt.name} is not installed` }, () => {
+      let proc, port;
+
+      before(async () => {
+        const user = fs.mkdtempSync(path.join(os.tmpdir(), "doczi-legacy-http-"));
+        const project = path.join(user, "old");
+        fs.mkdirSync(path.join(project, "plan"), { recursive: true });
+        fs.writeFileSync(path.join(project, ".solo-keel.json"), JSON.stringify({ progress: "plan/p.json" }));
+        fs.writeFileSync(path.join(project, "plan/p.json"), JSON.stringify({ milestones: [{ id: "M0", name: "Start", tasks: [{ name: "T", steps: [{ status: "done", title: "a" }] }] }] }));
+        const registryHome = mode === "default home" ? path.join(user, ".solo-keel") : path.join(user, "custom");
+        fs.mkdirSync(registryHome);
+        const escaping = path.join(user, "escaping");
+        fs.mkdirSync(escaping);
+        fs.writeFileSync(path.join(escaping, ".solo-keel.json"), JSON.stringify({ progress: "../old/plan/p.json" }));
+        fs.writeFileSync(path.join(registryHome, "projects.json"), JSON.stringify({ projects: [{ id: "old", name: "Old", path: project }, { id: "escaping", name: "Escaping", path: escaping }] }));
+        const env = { ...process.env, HOME: user, USERPROFILE: user };
+        delete env.DOCZI_HOME;
+        delete env.SOLO_KEEL_HOME;
+        if (mode === "SOLO_KEEL_HOME") env.SOLO_KEEL_HOME = registryHome;
+        port = await freePort();
+        proc = await startServer(rt, port, env);
+      });
+      after(() => proc?.kill());
+
+      test("lists the project from the legacy registry and reads its legacy config", async () => {
+        assert.deepEqual((await request(port, "GET", "/api/projects")).json.projects, [{ id: "old", name: "Old", hasProgress: true }, { id: "escaping", name: "Escaping", hasProgress: false }]);
+        const r = await request(port, "GET", "/api/projects/old/progress");
+        assert.equal(r.status, 200);
+        assert.equal(r.json.milestones[0].id, "M0");
+      });
+
+      test("a legacy config cannot point the progress file outside its project", async () => {
+        assert.equal((await request(port, "GET", "/api/projects/escaping/progress")).status, 404);
+      });
+    });
+  }
 }

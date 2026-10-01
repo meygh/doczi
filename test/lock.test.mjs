@@ -7,9 +7,9 @@ import path from "node:path";
 import { fileURLToPath } from "node:url";
 import { LockBusyError, withLockSync } from "../lib/lock.mjs";
 
-const cli = fileURLToPath(new URL("../cli/solo-keel.mjs", import.meta.url));
+const cli = fileURLToPath(new URL("../cli/doczi.mjs", import.meta.url));
 let tmp;
-before(() => { tmp = fs.mkdtempSync(path.join(os.tmpdir(), "solo-keel-lock-")); });
+before(() => { tmp = fs.mkdtempSync(path.join(os.tmpdir(), "doczi-lock-")); });
 
 test("withLockSync runs the change and removes its lock file", () => {
   const file = path.join(tmp, "a.json");
@@ -43,7 +43,7 @@ test("parallel writers lose nothing", async () => {
   fs.mkdirSync(path.join(dir, "docs", "progress"), { recursive: true });
   fs.writeFileSync(path.join(dir, "docs/progress/milestones.json"),
     JSON.stringify({ milestones: [{ id: "M0", name: "Race", tasks: [{ name: "T", steps: [] }] }] }));
-  const env = { ...process.env, SOLO_KEEL_HOME: path.join(tmp, "home") };
+  const env = { ...process.env, DOCZI_HOME: path.join(tmp, "home") };
   const runs = Array.from({ length: 12 }, (_, i) => new Promise((resolve) => {
     const p = spawn(process.execPath, [cli, "progress", "add", "M0", "T", `Step ${i}`], { cwd: dir, env });
     let err = "";

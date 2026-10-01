@@ -12,12 +12,12 @@ test("the npm package contains everything the CLI, launchers and servers need", 
   assert.equal(r.status, 0, r.stderr);
   const files = new Set(JSON.parse(r.stdout)[0].files.map((f) => f.path.replace(/\\/g, "/")));
   const needed = [
-    "cli/solo-keel.mjs", "mcp/server.mjs", "hooks/hooks.json", "hooks/session-start.mjs",
+    "cli/doczi.mjs", "mcp/server.mjs", "hooks/hooks.json", "hooks/session-start.mjs",
     "serve", "serve.cmd", "serve.ps1",
     "server/node/server.mjs", "server/php/router.php", "server/python/server.py",
     "web/index.html", "web/app.js", "web/markdown.js", "web/theme.js", "web/style.css",
     "templates/progress/milestones.example.json", "templates/progress/progress.schema.json",
-    "templates/git-hooks/commit-msg", "templates/git-hooks/solo-keel-commit-msg.cjs",
+    "templates/git-hooks/commit-msg", "templates/git-hooks/doczi-commit-msg.cjs",
     "rules/core.md", ".claude-plugin/plugin.json", ".mcp.json", "package.json",
   ];
   const missing = needed.filter((f) => !files.has(f));

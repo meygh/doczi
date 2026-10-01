@@ -1,17 +1,27 @@
-# solo-keel API
+# doczi API
 
-solo-keel talks to projects in three ways. All of them read and write the same file in each
-project (`.solo-keel.json` → `progress`, default `docs/progress/milestones.json`); solo-keel keeps no
+doczi talks to projects in three ways. All of them read and write the same file in each
+project (`.doczi.json` → `progress`, default `docs/progress/milestones.json`); doczi keeps no
 database of its own.
 
 | For | Interface | Start |
 | --- | --- | --- |
-| Agents (Claude Code, Codex) | MCP over stdio | Installed with the plugin (`.mcp.json`) or `solo-keel mcp` |
-| People | HTTP dashboard + REST | `./serve` menu, or `solo-keel serve` |
-| Scripts, CI | CLI | `solo-keel progress …` |
+| Agents (Claude Code, Codex) | MCP over stdio | Installed with the plugin (`.mcp.json`) or `doczi mcp` |
+| People | HTTP dashboard + REST | `./serve` menu, or `doczi serve` |
+| Scripts, CI | CLI | `doczi progress …` |
 
-Projects are registered in `$SOLO_KEEL_HOME/projects.json` (default `~/.solo-keel/projects.json`) by
-`solo-keel init` or `solo-keel projects add <path>`.
+Projects are registered in `$DOCZI_HOME/projects.json` (default `~/.doczi/projects.json`) by
+`doczi init` or `doczi projects add <path>`.
+
+Until v0.3, every implementation also reads the legacy names. When both exist, the new name
+wins.
+
+- A project's `.solo-keel.json` is read when it has no `.doczi.json`.
+- A `SOLO_KEEL_*` variable is read when the matching `DOCZI_*` variable is unset.
+- `~/.solo-keel/projects.json` is read when no home is set and the `~/.doczi` folder does
+  not exist yet.
+
+See [ADR 0001](adr/0001-rename-to-doczi.md).
 
 ## The progress file
 
@@ -99,7 +109,7 @@ suite (`test/http-contract.test.mjs`) against each runtime that is installed.
   progress file is refused.
 - Every change holds the progress file's lock for its whole read → change → write: an
   exclusive `<file>.lock` holding a random token, created by whichever writer comes first (CLI,
-  MCP, any server). Others wait up to 5 s (`SOLO_KEEL_LOCK_TIMEOUT_MS`), then get `503`. A lock
+  MCP, any server). Others wait up to 5 s (`DOCZI_LOCK_TIMEOUT_MS`), then get `503`. A lock
   older than 30 s is treated as left by a crashed writer and removed; a writer removes only its
   own lock.
 - Writes are atomic (an exclusive, randomly named temporary file, then rename), keep one step

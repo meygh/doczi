@@ -1,14 +1,14 @@
 {
-  "title": "solo-keel: where we are",
-  "subtitle": "Milestones for solo-keel itself, tracked with solo-keel.",
-  "updated": "2026-09-30",
+  "title": "doczi: where we are",
+  "subtitle": "Milestones for doczi itself, tracked with doczi.",
+  "updated": "2026-10-01",
   "milestones": [
     {
       "id": "v0.1",
       "name": "First release",
       "when": "September 2026",
       "weight": 3,
-      "exit": "A project can install solo-keel in Claude Code or Codex, get the rules and skills, and track progress through MCP, CLI and the dashboard on Node.js, PHP or Python.",
+      "exit": "A project can install doczi in Claude Code or Codex, get the rules and skills, and track progress through MCP, CLI and the dashboard on Node.js, PHP or Python.",
       "tasks": [
         {
           "name": "Core library",
@@ -69,7 +69,7 @@
           ],
           "questions": [
             {
-              "q": "Should solo-keel also be published to npm, or is installing from GitHub enough?"
+              "q": "Should doczi also be published to npm, or is installing from GitHub enough?"
             }
           ]
         },
@@ -86,6 +86,22 @@
           "name": "Security review",
           "steps": [
             { "status": "done", "title": "Fix the eleven findings with regression tests" }
+          ]
+        },
+        {
+          "name": "Rename to doczi",
+          "docs": [
+            {
+              "title": "Plan",
+              "path": "docs/plans/rename-doczi.md"
+            }
+          ],
+          "steps": [
+            { "status": "review", "title": "ADR: rename and legacy fallback until v0.3" },
+            { "status": "done", "title": "Rename to doczi everywhere" },
+            { "status": "done", "title": "Read legacy config, home and env with a notice" },
+            { "status": "done", "title": "doczi migrate and legacy git hook replacement" },
+            { "status": "done", "title": "Upgrade guide in README and API docs" }
           ]
         }
       ]
@@ -109,7 +125,8 @@
           "steps": [
             { "status": "todo", "title": "Use MCP roots to find the project without a path" },
             { "status": "todo", "title": "Edit step titles and notes from the dashboard" },
-            { "status": "todo", "title": "History of changes per step (from git)" }
+            { "status": "todo", "title": "History of changes per step (from git)" },
+            { "status": "todo", "title": "Remove the legacy solo-keel names (v0.3)" }
           ]
         }
       ]

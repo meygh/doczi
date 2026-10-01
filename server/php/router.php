@@ -1,5 +1,5 @@
 <?php
-// solo-keel dashboard + REST API on PHP's built-in server. Contract: docs/API.md (same as the
+// doczi dashboard + REST API on PHP's built-in server. Contract: docs/API.md (same as the
 // Node.js and Python servers).
 // Usage: php -S 127.0.0.1:4800 server/php/router.php
 declare(strict_types=1);
@@ -8,6 +8,10 @@ declare(strict_types=1);
 ini_set('display_errors', '0');
 ini_set('log_errors', '1');
 
+// Names, as in lib/names.mjs: the legacy solo-keel names are read until v0.3; the new name wins.
+const CONFIG_FILES = ['.doczi.json', '.solo-keel.json']; // second one: legacy
+const HOME_DIR = '.doczi';
+const LEGACY_HOME_DIR = '.solo-keel';
 const MAX_BODY = 65536;
 const MAX_DOC = 2097152;
 const MAX_REASON = 2000;
@@ -53,20 +57,30 @@ function sendJson(int $status, $data): void
     send($status, $json === false ? '{"error":"Server error."}' : $json);
 }
 
-function keelHome(): string
+function envValue(string $name): string
 {
-    $home = getenv('SOLO_KEEL_HOME');
-    if ($home) {
-        return $home;
-    }
-    $user = getenv('HOME') ?: getenv('USERPROFILE') ?: '.';
-    return $user . DIRECTORY_SEPARATOR . '.solo-keel';
+    return (string) (getenv('DOCZI_' . $name) ?: getenv('SOLO_KEEL_' . $name) /* legacy */ ?: '');
+}
+
+function userHome(): string
+{
+    return getenv('HOME') ?: getenv('USERPROFILE') ?: '.';
 }
 
 function projects(): array
 {
-    $file = keelHome() . DIRECTORY_SEPARATOR . 'projects.json';
-    if (!is_file($file)) {
+    $home = envValue('HOME');
+    $newHome = userHome() . DIRECTORY_SEPARATOR . HOME_DIR;
+    // The legacy home only while neither the environment names a home nor ~/.doczi exists.
+    $candidates = $home !== '' ? [$home] : (is_dir($newHome) ? [$newHome] : [$newHome, userHome() . DIRECTORY_SEPARATOR . LEGACY_HOME_DIR]);
+    $file = null;
+    foreach ($candidates as $dir) {
+        if (is_file($dir . DIRECTORY_SEPARATOR . 'projects.json')) {
+            $file = $dir . DIRECTORY_SEPARATOR . 'projects.json';
+            break;
+        }
+    }
+    if ($file === null) {
         return [];
     }
     $data = json_decode((string) file_get_contents($file), true);
@@ -137,8 +151,14 @@ function progressPath(array $project): ?string
 {
     $root = normalizePath((string) ($project['path'] ?? ''));
     $rel = 'docs/progress/milestones.json';
-    $configFile = $root . '/.solo-keel.json';
-    if (is_file($configFile)) {
+    $configFile = null;
+    foreach (CONFIG_FILES as $name) {
+        if (is_file($root . '/' . $name)) {
+            $configFile = $root . '/' . $name;
+            break;
+        }
+    }
+    if ($configFile !== null) {
         $config = json_decode(preg_replace('/^\xEF\xBB\xBF/', '', (string) file_get_contents($configFile)), true);
         if (is_array($config) && is_string($config['progress'] ?? null)) {
             $rel = $config['progress'];
@@ -278,12 +298,12 @@ function patchStep(string $id, int $port): void
 
 // Read, change and write the progress file while holding its lock, using the same protocol
 // as the Node.js and Python servers: an exclusive "<file>.lock" with a random token, a short
-// wait (SOLO_KEEL_LOCK_TIMEOUT_MS, default 5 s) and a 30 s stale limit.
+// wait (DOCZI_LOCK_TIMEOUT_MS, default 5 s) and a 30 s stale limit.
 function changeLocked(string $root, string $path, callable $change): string
 {
     $lock = $path . '.lock';
     $token = getmypid() . ' ' . bin2hex(random_bytes(8));
-    $deadline = microtime(true) + ((int) (getenv('SOLO_KEEL_LOCK_TIMEOUT_MS') ?: 5000)) / 1000;
+    $deadline = microtime(true) + ((int) (envValue('LOCK_TIMEOUT_MS') ?: 5000)) / 1000;
     while (true) {
         $fh = @fopen($lock, 'x');
         if ($fh !== false) {

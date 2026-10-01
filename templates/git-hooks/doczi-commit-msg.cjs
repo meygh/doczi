@@ -1,7 +1,8 @@
-// solo-keel commit-msg hook: removes assistant attribution (co-author trailers, "generated with"
+// doczi commit-msg hook: removes assistant attribution (co-author trailers, "generated with"
 // footers), then refuses the commit if the message still mentions an AI tool or vendor.
-// Standalone on purpose: it keeps working when solo-keel moves or updates.
-// Turn it off for one repo with "aiFootprint": { "check": false } in .solo-keel.json.
+// Standalone on purpose: it keeps working when doczi moves or updates.
+// Turn it off for one repo with "aiFootprint": { "check": false } in .doczi.json
+// (or the legacy .solo-keel.json, read until v0.3).
 const fs = require("fs");
 const path = require("path");
 
@@ -19,10 +20,11 @@ if (!file) process.exit(0);
 let extra = [];
 try {
   const root = require("child_process").execSync("git rev-parse --show-toplevel", { encoding: "utf8" }).trim();
-  const config = JSON.parse(fs.readFileSync(path.join(root, ".solo-keel.json"), "utf8").replace(/^﻿/, ""));
+  const name = [".doczi.json", ".solo-keel.json" /* legacy */].find((n) => { try { return fs.statSync(path.join(root, n)).isFile(); } catch (e) { return false; } });
+  const config = JSON.parse(fs.readFileSync(path.join(root, name), "utf8").replace(/^﻿/, ""));
   if (config.aiFootprint && config.aiFootprint.check === false) process.exit(0);
   extra = (config.aiFootprint && config.aiFootprint.terms) || [];
-} catch (e) { /* no .solo-keel.json: defaults */ }
+} catch (e) { /* no config file: defaults */ }
 
 const kept = fs.readFileSync(file, "utf8").split(/\r?\n/).filter((line) =>
   !/^\s*co-authored-by:.*(claude|anthropic|openai|chatgpt|copilot|codex|gemini|noreply@anthropic\.com)/i.test(line) &&

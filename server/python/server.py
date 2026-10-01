@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""solo-keel dashboard + REST API on Python 3 (standard library only).
+"""doczi dashboard + REST API on Python 3 (standard library only).
 
 Contract: docs/API.md (same as the Node.js and PHP servers).
 Usage: python3 server/python/server.py [--port 4800]
@@ -18,6 +18,10 @@ from urllib.parse import parse_qs, unquote, urlsplit
 
 REPO = Path(__file__).resolve().parents[2]
 VERSION = json.loads((REPO / "package.json").read_text(encoding="utf-8"))["version"]
+# Names, as in lib/names.mjs: the legacy solo-keel names are read until v0.3; the new name wins.
+CONFIG_FILES = (".doczi.json", ".solo-keel.json")  # second one: legacy
+HOME_DIR = ".doczi"
+LEGACY_HOME_DIR = ".solo-keel"
 MAX_BODY = 64 * 1024
 MAX_DOC = 2 * 1024 * 1024
 MAX_REASON = 2000
@@ -45,13 +49,24 @@ class HttpError(Exception):
         self.status = status
 
 
-def solo_keel_home():
-    return Path(os.environ.get("SOLO_KEEL_HOME") or Path.home() / ".solo-keel")
+def env(name):
+    return os.environ.get("DOCZI_" + name) or os.environ.get("SOLO_KEEL_" + name) or ""  # legacy
+
+
+def registry_file():
+    """The registry to read: the home folder, else the legacy one, but only while neither the
+    environment names a home nor ~/.doczi exists."""
+    if env("HOME"):
+        return Path(env("HOME")) / "projects.json"
+    if (Path.home() / HOME_DIR).is_dir():
+        return Path.home() / HOME_DIR / "projects.json"
+    candidates = [Path.home() / HOME_DIR / "projects.json", Path.home() / LEGACY_HOME_DIR / "projects.json"]
+    return next((f for f in candidates if f.is_file()), candidates[0])
 
 
 def projects():
     try:
-        data = json.loads((solo_keel_home() / "projects.json").read_text(encoding="utf-8"))
+        data = json.loads(registry_file().read_text(encoding="utf-8"))
         return data.get("projects", []) if isinstance(data, dict) else []
     except (OSError, ValueError):
         return []
@@ -87,7 +102,8 @@ def progress_path(project):
     root = os.path.abspath(project["path"])
     rel = "docs/progress/milestones.json"
     try:
-        config = json.loads(Path(root, ".solo-keel.json").read_text(encoding="utf-8-sig"))
+        name = next((n for n in CONFIG_FILES if Path(root, n).is_file()), CONFIG_FILES[0])
+        config = json.loads(Path(root, name).read_text(encoding="utf-8-sig"))
         if isinstance(config, dict) and isinstance(config.get("progress"), str):
             rel = config["progress"]
     except (OSError, ValueError):
@@ -156,11 +172,11 @@ def change_locked(root, path, change):
     """Read, change and write the progress file while holding its lock.
 
     Same protocol as the Node.js and PHP servers: an exclusive "<file>.lock" holding a random
-    token, a short wait (SOLO_KEEL_LOCK_TIMEOUT_MS, default 5 s) and a 30 s stale limit.
+    token, a short wait (DOCZI_LOCK_TIMEOUT_MS, default 5 s) and a 30 s stale limit.
     """
     lock = path + ".lock"
     token = f"{os.getpid()} {os.urandom(8).hex()}"
-    deadline = time.monotonic() + int(os.environ.get("SOLO_KEEL_LOCK_TIMEOUT_MS") or 5000) / 1000
+    deadline = time.monotonic() + int(env("LOCK_TIMEOUT_MS") or 5000) / 1000
     while True:
         try:
             fd = os.open(lock, os.O_CREAT | os.O_EXCL | os.O_WRONLY, 0o644)
@@ -228,7 +244,7 @@ def today():
 
 
 class Handler(BaseHTTPRequestHandler):
-    server_version = "solo-keel"
+    server_version = "doczi"
     sys_version = ""
     timeout = 15
 
@@ -417,11 +433,11 @@ def main():
     for stream in (sys.stdout, sys.stderr):  # Windows consoles default to a legacy code page
         if hasattr(stream, "reconfigure"):
             stream.reconfigure(encoding="utf-8", errors="replace")
-    parser = argparse.ArgumentParser(description="solo-keel dashboard and API")
-    parser.add_argument("--port", type=int, default=int(os.environ.get("SOLO_KEEL_PORT", "4800")))
+    parser = argparse.ArgumentParser(description="doczi dashboard and API")
+    parser.add_argument("--port", type=int, default=int(env("PORT") or 4800))
     args = parser.parse_args()
     server = ThreadingHTTPServer(("127.0.0.1", args.port), Handler)
-    print(f"solo-keel dashboard (Python {sys.version.split()[0]}) → http://localhost:{args.port}/   Stop with Ctrl+C.", flush=True)
+    print(f"doczi dashboard (Python {sys.version.split()[0]}) → http://localhost:{args.port}/   Stop with Ctrl+C.", flush=True)
     try:
         server.serve_forever()
     except KeyboardInterrupt:

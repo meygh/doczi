@@ -1,25 +1,26 @@
 #!/usr/bin/env node
-// solo-keel command line. Run "solo-keel help" for the commands.
+// doczi command line. Run "doczi help" for the commands.
 import { spawn, spawnSync } from "node:child_process";
 import fs from "node:fs";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
 import { isAllowed, scanText } from "../lib/ai-terms.mjs";
-import { DEFAULT_CONFIG, findRoot, loadConfig, RULE_MODULES } from "../lib/config.mjs";
+import { configFile as findConfigFile, DEFAULT_CONFIG, findRoot, loadConfig, RULE_MODULES } from "../lib/config.mjs";
+import { CONFIG_FILE, env, home, LEGACY_CONFIG_FILE, legacyHome } from "../lib/names.mjs";
 import { addQuestion, addStep, answerQuestion, format, parse, setStatus } from "../lib/progress.mjs";
 import { list, register, unregister } from "../lib/registry.mjs";
 import { clean, listText, summaryText } from "../lib/report.mjs";
 import { occupied } from "../lib/fsutil.mjs";
 import { assertInside, openProject, readProgress, updateProgress, writeFileAtomic } from "../lib/store.mjs";
 
-const KEEL = path.resolve(fileURLToPath(new URL("..", import.meta.url)));
+const PACKAGE_ROOT = path.resolve(fileURLToPath(new URL("..", import.meta.url)));
 const WEB_FILES = ["index.html", "app.js", "markdown.js", "theme.js", "style.css"];
 
-const HELP = `solo-keel — working rules, skills and progress tracking for your projects
+const HELP = `doczi — working rules, skills and progress tracking for your projects
 
-Usage: solo-keel <command> [options]
+Usage: doczi <command> [options]
 
-  init [dir]                 Set up solo-keel in a project: .solo-keel.json, a starter progress file,
+  init [dir]                 Set up doczi in a project: .doczi.json, a starter progress file,
                              and registration with the dashboard. Never overwrites files.
       --name <name>  --check "<command>"  --progress <path>
       --rules core,clean-code,no-ai-footprint,delegation | --no-rules
@@ -36,6 +37,8 @@ Usage: solo-keel <command> [options]
       --project <id|path>    Another project than the current one
   check-ai [files…]          Find AI tool or vendor mentions (default: all tracked files)
   git-hooks [dir]            Install the commit-msg hook that strips assistant attribution
+  migrate [dir]              Move a project set up before the rename: rename its config file
+                             and copy the project list. Never overwrites files.
   projects                   List registered projects
       add <path> | remove <id>
   serve [options]            Start the dashboard (menu: Node.js, PHP or Python)
@@ -67,7 +70,7 @@ class UsageError extends Error {}
 function init(args) {
   const root = path.resolve(args._[0] || findRoot(process.cwd()));
   if (!fs.existsSync(root)) throw new UsageError(`No folder ${root}.`);
-  const configFile = path.join(root, ".solo-keel.json");
+  const configFile = findConfigFile(root).file;
   const name = args.flags.name || path.basename(root);
   const report = [];
 
@@ -75,10 +78,10 @@ function init(args) {
   // repo may contain dangling links that point elsewhere). Returns false when it already exists.
   const create = (file, content) => {
     if (occupied(file)) {
-      if (fs.lstatSync(file).isSymbolicLink()) throw new UsageError(`${path.relative(root, file)} is a symbolic link; solo-keel will not write through it.`);
+      if (fs.lstatSync(file).isSymbolicLink()) throw new UsageError(`${path.relative(root, file)} is a symbolic link; doczi will not write through it.`);
       return false;
     }
-    try { assertInside(root, file); } catch { throw new UsageError(`${path.relative(root, file)} would land outside the project; solo-keel will not write it.`); }
+    try { assertInside(root, file); } catch { throw new UsageError(`${path.relative(root, file)} would land outside the project; doczi will not write it.`); }
     fs.mkdirSync(path.dirname(file), { recursive: true });
     assertInside(root, file);
     writeFileAtomic(file, content);
@@ -86,7 +89,7 @@ function init(args) {
   };
 
   if (occupied(configFile) && !fs.lstatSync(configFile).isSymbolicLink()) {
-    report.push("Kept the existing .solo-keel.json.");
+    report.push(`Kept the existing ${path.basename(configFile)}.`);
   } else {
     const rules = args.flags["no-rules"] ? false
       : typeof args.flags.rules === "string" ? args.flags.rules.split(",").map((s) => s.trim()).filter(Boolean) : RULE_MODULES;
@@ -101,11 +104,11 @@ function init(args) {
       protect: DEFAULT_CONFIG.protect,
     };
     create(configFile, JSON.stringify(config, null, 2) + "\n");
-    report.push("Created .solo-keel.json.");
+    report.push("Created .doczi.json.");
   }
 
   const project = openProject(root);
-  const data = parse(fs.readFileSync(path.join(KEEL, "templates/progress/milestones.example.json"), "utf8"));
+  const data = parse(fs.readFileSync(path.join(PACKAGE_ROOT, "templates/progress/milestones.example.json"), "utf8"));
   data.title = `${clean(project.config.name, 80)}: where we are`;
   data.updated = new Date().toISOString().slice(0, 10);
   delete data.$schema;
@@ -116,14 +119,14 @@ function init(args) {
     const dir = path.dirname(project.progressPath);
     for (const f of [...WEB_FILES, "progress.schema.json"]) {
       const to = path.join(dir, f);
-      const source = fs.readFileSync(path.join(KEEL, f === "progress.schema.json" ? "templates/progress" : "web", f), "utf8");
+      const source = fs.readFileSync(path.join(PACKAGE_ROOT, f === "progress.schema.json" ? "templates/progress" : "web", f), "utf8");
       if (!create(to, source)) report.push(`Kept ${path.relative(root, to)}.`);
     }
-    report.push(`Copied the dashboard page into ${path.relative(root, dir) || "."} (serve that folder, or use "solo-keel serve").`);
+    report.push(`Copied the dashboard page into ${path.relative(root, dir) || "."} (serve that folder, or use "doczi serve").`);
   }
 
   if (!args.flags["no-register"]) report.push(`Registered as "${register(root, project.config.name).id}" for the dashboard.`);
-  say(...report, "", 'Next: "solo-keel progress" to see where you stand, "solo-keel serve" for the dashboard, "solo-keel git-hooks" for commit messages.');
+  say(...report, "", 'Next: "doczi progress" to see where you stand, "doczi serve" for the dashboard, "doczi git-hooks" for commit messages.');
 }
 
 function progress(args) {
@@ -131,26 +134,26 @@ function progress(args) {
   const [sub, ...rest] = args._;
   if (sub === "set") {
     const [milestone, task, step, status] = rest;
-    if (!status) throw new UsageError('Usage: solo-keel progress set <milestone> <task> <step> <done|review|doing|blocked|todo> [--reason "…"]');
+    if (!status) throw new UsageError('Usage: doczi progress set <milestone> <task> <step> <done|review|doing|blocked|todo> [--reason "…"]');
     const reason = typeof args.flags.reason === "string" ? args.flags.reason : undefined;
     const r = updateProgress(project, (d) => setStatus(d, { milestone, task, step, status, reason }));
     return say(`${r.milestone} › ${r.task} › ${r.step}: ${r.previous} → ${r.status}${r.reason ? ` (${r.reason})` : ""}`);
   }
   if (sub === "ask") {
     const [milestone, task, question] = rest;
-    if (!question) throw new UsageError('Usage: solo-keel progress ask <milestone> <task> "<question>"');
+    if (!question) throw new UsageError('Usage: doczi progress ask <milestone> <task> "<question>"');
     const r = updateProgress(project, (d) => addQuestion(d, { milestone, task, question }));
     return say(`Asked on ${r.milestone} › ${r.task} (question ${r.number}): ${r.question}`);
   }
   if (sub === "answer") {
     const [milestone, task, question, answer] = rest;
-    if (!answer) throw new UsageError('Usage: solo-keel progress answer <milestone> <task> <question number or text> "<answer>"');
+    if (!answer) throw new UsageError('Usage: doczi progress answer <milestone> <task> <question number or text> "<answer>"');
     const r = updateProgress(project, (d) => answerQuestion(d, { milestone, task, question, answer }));
     return say(`Answered on ${r.milestone} › ${r.task}: ${r.question} → ${r.answer}`);
   }
   if (sub === "add") {
     const [milestone, task, title] = rest;
-    if (!title) throw new UsageError('Usage: solo-keel progress add <milestone> <task> "<step title>" [--status doing]');
+    if (!title) throw new UsageError('Usage: doczi progress add <milestone> <task> "<step title>" [--status doing]');
     const r = updateProgress(project, (d) => addStep(d, { milestone, task, title, status: args.flags.status || "todo" }));
     return say(`Added "${r.step}" (${r.status}) to ${r.milestone} › ${r.task}.`);
   }
@@ -181,7 +184,7 @@ function checkAi(args) {
     }
   }
   if (found) {
-    console.error(`\n${found} mention(s) of AI tools or vendors. Rewrite them, or list the path in .solo-keel.json → aiFootprint.allow if it must name them.`);
+    console.error(`\n${found} mention(s) of AI tools or vendors. Rewrite them, or list the path in .doczi.json → aiFootprint.allow if it must name them.`);
     process.exitCode = 1;
   } else if (args.flags.self || process.stdout.isTTY) {
     say("No AI tool or vendor mentions found.");
@@ -194,43 +197,74 @@ function gitHooks(args) {
   if (git.status !== 0) throw new UsageError(`${root} is not a git repository.`);
   const hooksDir = path.resolve(root, git.stdout.trim());
   fs.mkdirSync(hooksDir, { recursive: true });
-  fs.copyFileSync(path.join(KEEL, "templates/git-hooks/solo-keel-commit-msg.cjs"), path.join(hooksDir, "solo-keel-commit-msg.cjs"));
+  fs.copyFileSync(path.join(PACKAGE_ROOT, "templates/git-hooks/doczi-commit-msg.cjs"), path.join(hooksDir, "doczi-commit-msg.cjs"));
   const hook = path.join(hooksDir, "commit-msg");
-  if (fs.existsSync(hook) && !fs.readFileSync(hook, "utf8").includes("# solo-keel-managed commit-msg hook")) {
+  const managed = /# (doczi|solo-keel)-managed commit-msg hook/; // solo-keel: legacy marker, replaced
+  if (fs.existsSync(hook) && !managed.test(fs.readFileSync(hook, "utf8"))) {
     return say(
       `${path.relative(root, hook)} already has a commit-msg hook, so it was left alone.`,
-      "To add solo-keel's check, put this line near its top:",
-      `  node "$(dirname "$0")/solo-keel-commit-msg.cjs" "$1" || exit 1`,
+      "To add doczi's check, put this line near its top:",
+      `  node "$(dirname "$0")/doczi-commit-msg.cjs" "$1" || exit 1`,
     );
   }
-  fs.copyFileSync(path.join(KEEL, "templates/git-hooks/commit-msg"), hook);
+  fs.copyFileSync(path.join(PACKAGE_ROOT, "templates/git-hooks/commit-msg"), hook);
   fs.chmodSync(hook, 0o755);
+  fs.rmSync(path.join(hooksDir, "solo-keel-commit-msg.cjs"), { force: true }); // legacy script
   say(`Installed the commit-msg hook in ${path.relative(root, hooksDir) || hooksDir}.`, "Commit messages now lose assistant attribution lines, and mentions of AI tools are refused.");
+}
+
+// Until v0.3: move a project and the project list from the legacy names to the new ones.
+function migrate(args) {
+  const root = path.resolve(args._[0] || findRoot(process.cwd()));
+  const legacyConfig = path.join(root, LEGACY_CONFIG_FILE);
+  const config = path.join(root, CONFIG_FILE);
+  const report = [];
+  if (occupied(legacyConfig)) {
+    if (fs.lstatSync(legacyConfig).isSymbolicLink()) throw new UsageError(`${LEGACY_CONFIG_FILE} is a symbolic link; doczi will not move it.`);
+    if (occupied(config)) throw new UsageError(`${CONFIG_FILE} already exists next to ${LEGACY_CONFIG_FILE}; merge them by hand, then delete ${LEGACY_CONFIG_FILE}.`);
+    // Link, then unlink: unlike rename, a link never replaces a file that appeared meanwhile.
+    try { fs.linkSync(legacyConfig, config); }
+    catch (err) {
+      if (err.code === "EEXIST") throw new UsageError(`${CONFIG_FILE} appeared while migrating; nothing was changed.`);
+      fs.copyFileSync(legacyConfig, config, fs.constants.COPYFILE_EXCL);
+    }
+    fs.unlinkSync(legacyConfig);
+    report.push(`Renamed ${LEGACY_CONFIG_FILE} to ${CONFIG_FILE}.`);
+  }
+  const legacyRegistry = path.join(legacyHome(), "projects.json");
+  const registry = path.join(home(), "projects.json");
+  if (!env("HOME") && fs.existsSync(legacyRegistry) && !fs.existsSync(home())) {
+    fs.mkdirSync(home(), { recursive: true });
+    fs.copyFileSync(legacyRegistry, registry, fs.constants.COPYFILE_EXCL);
+    report.push(`Copied the project list to ${registry}; ${legacyRegistry} is left as it was.`);
+  }
+  if (!report.length) return say("Nothing to migrate.");
+  say(...report, "", 'Run "doczi git-hooks" too if this project uses the commit-msg hook.');
 }
 
 function projects(args) {
   const [sub, value] = args._;
   if (sub === "add") {
-    if (!value) throw new UsageError("Usage: solo-keel projects add <path>");
+    if (!value) throw new UsageError("Usage: doczi projects add <path>");
     const root = findRoot(path.resolve(value));
     const p = register(root, loadConfig(root).name);
     return say(`Registered "${p.id}" (${p.path}).`);
   }
   if (sub === "remove") {
-    if (!value) throw new UsageError("Usage: solo-keel projects remove <id>");
+    if (!value) throw new UsageError("Usage: doczi projects remove <id>");
     return say(unregister(value) ? `Removed "${value}".` : `No project "${value}".`);
   }
   if (sub) throw new UsageError(`Unknown projects command "${sub}". Use add or remove, or nothing to list.`);
   const all = list();
-  if (!all.length) return say('No projects registered yet. Run "solo-keel init" inside a project.');
+  if (!all.length) return say('No projects registered yet. Run "doczi init" inside a project.');
   const width = Math.max(...all.map((p) => p.id.length));
   say(...all.map((p) => `${p.id.padEnd(width)}  ${p.name}  ${p.path}`));
 }
 
 function serve(argv) {
   const [cmd, args] = process.platform === "win32"
-    ? ["powershell", ["-NoProfile", "-ExecutionPolicy", "Bypass", "-File", path.join(KEEL, "serve.ps1"), ...toPsArgs(argv)]]
-    : ["bash", [path.join(KEEL, "serve"), ...argv]];
+    ? ["powershell", ["-NoProfile", "-ExecutionPolicy", "Bypass", "-File", path.join(PACKAGE_ROOT, "serve.ps1"), ...toPsArgs(argv)]]
+    : ["bash", [path.join(PACKAGE_ROOT, "serve"), ...argv]];
   spawn(cmd, args, { stdio: "inherit" }).on("exit", (code) => process.exit(code ?? 0));
 }
 
@@ -248,13 +282,14 @@ try {
     case "progress": progress(parseArgs(rest)); break;
     case "check-ai": checkAi(parseArgs(rest)); break;
     case "git-hooks": gitHooks(parseArgs(rest)); break;
+    case "migrate": migrate(parseArgs(rest)); break;
     case "projects": projects(parseArgs(rest)); break;
     case "serve": serve(rest); break;
     case "mcp": await import("../mcp/server.mjs"); break;
     case "help": case "--help": case "-h": say(HELP); break;
-    default: throw new UsageError(`Unknown command "${command}". Run "solo-keel help".`);
+    default: throw new UsageError(`Unknown command "${command}". Run "doczi help".`);
   }
 } catch (err) {
-  console.error(err instanceof UsageError || !process.env.SOLO_KEEL_DEBUG ? err.message : err.stack);
+  console.error(err instanceof UsageError || !env("DEBUG") ? err.message : err.stack);
   process.exitCode = 1;
 }

@@ -9,19 +9,19 @@ import { openProject, readProgress, writeProgress } from "../lib/store.mjs";
 
 let tmp;
 beforeEach(() => {
-  tmp = fs.mkdtempSync(path.join(os.tmpdir(), "solo-keel-"));
-  process.env.SOLO_KEEL_HOME = path.join(tmp, "home");
+  tmp = fs.mkdtempSync(path.join(os.tmpdir(), "doczi-"));
+  process.env.DOCZI_HOME = path.join(tmp, "home");
 });
 
 const mkProject = (name, config) => {
   const dir = path.join(tmp, name);
   fs.mkdirSync(path.join(dir, "src", "deep"), { recursive: true });
   fs.mkdirSync(path.join(dir, ".git"));
-  if (config) fs.writeFileSync(path.join(dir, ".solo-keel.json"), JSON.stringify(config));
+  if (config) fs.writeFileSync(path.join(dir, ".doczi.json"), JSON.stringify(config));
   return dir;
 };
 
-test("findRoot walks up to the folder with .solo-keel.json or .git", () => {
+test("findRoot walks up to the folder with .doczi.json or .git", () => {
   const dir = mkProject("a");
   assert.equal(findRoot(path.join(dir, "src", "deep")), dir);
 });
@@ -37,10 +37,10 @@ test("loadConfig fills defaults and keeps project settings", () => {
   assert.ok(c.aiFootprint.allow.includes("CLAUDE.md"));
 });
 
-test("loadConfig reports a broken .solo-keel.json instead of guessing", () => {
+test("loadConfig reports a broken .doczi.json instead of guessing", () => {
   const dir = mkProject("c");
-  fs.writeFileSync(path.join(dir, ".solo-keel.json"), "{ nope");
-  assert.throws(() => loadConfig(dir), /\.solo-keel\.json/);
+  fs.writeFileSync(path.join(dir, ".doczi.json"), "{ nope");
+  assert.throws(() => loadConfig(dir), /\.doczi\.json/);
 });
 
 test("matchesAny understands ** and * globs", () => {

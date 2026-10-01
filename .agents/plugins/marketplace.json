@@ -1,12 +1,12 @@
 {
-  "name": "solo-keel",
+  "name": "doczi",
   "interface": {
-    "displayName": "solo-keel"
+    "displayName": "doczi"
   },
   "plugins": [
     {
-      "name": "solo-keel",
-      "source": { "source": "url", "url": "https://github.com/meygh/solo-keel.git", "ref": "main" },
+      "name": "doczi",
+      "source": { "source": "url", "url": "https://github.com/meygh/doczi.git", "ref": "main" },
       "policy": { "installation": "AVAILABLE", "authentication": "ON_INSTALL" },
       "category": "Productivity"
     },

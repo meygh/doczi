@@ -1,9 +1,9 @@
-# solo-keel
+# doczi
 
 **One engineering standard for every project your coding agents touch, and one place to see
 where every project stands.**
 
-solo-keel packages how the work is done (working rules, workflow skills, reviewer agents,
+doczi packages how the work is done (working rules, workflow skills, reviewer agents,
 guard rails) and where the work stands (milestones, tasks and steps with progress that computes
 itself) into a single plugin for Claude Code and Codex. Install it once; every project gets the
 same discipline, and every project's progress is one click away in a shared dashboard.
@@ -13,9 +13,9 @@ same discipline, and every project's progress is one click away in a shared dash
 
 ---
 
-## Why solo-keel
+## Why doczi
 
-| Without it | With solo-keel |
+| Without it | With doczi |
 | --- | --- |
 | Each project re-explains the same rules to its agents, in slightly different words | One rule set, injected at session start, switchable per project |
 | Agents jump straight into code | Plan first, test first, smallest diff, and a report of what was not verified |
@@ -31,11 +31,11 @@ them to behave like a disciplined senior engineer, consistently.
 
 ```mermaid
 flowchart LR
-  subgraph Plugin["solo-keel plugin (installed once)"]
+  subgraph Plugin["doczi plugin (installed once)"]
     R[Rules] --- S[Skills] --- A[Reviewer agents] --- H[Guard hooks]
   end
   subgraph Project["Each project"]
-    C[.solo-keel.json] --- P[docs/progress/milestones.json]
+    C[.doczi.json] --- P[docs/progress/milestones.json]
   end
   Agent["Claude Code / Codex"] -- "session rules, skills, hooks" --> Plugin
   Agent -- "MCP tools" --> P
@@ -43,12 +43,12 @@ flowchart LR
   Scripts["CI and scripts"] -- "CLI" --> P
 ```
 
-- **Projects keep their data.** A project holds only a small `.solo-keel.json` and its progress
+- **Projects keep their data.** A project holds only a small `.doczi.json` and its progress
   file, both in git, reviewable in pull requests next to the code.
 - **Three ways in, one source of truth.** Agents use MCP tools, people use the dashboard,
   scripts use the CLI. All of them read and write the same file, under a lock, so no update is
   ever lost.
-- **Never in the way.** Plugin skills are namespaced (`/solo-keel:plan-feature`), so a project's
+- **Never in the way.** Plugin skills are namespaced (`/doczi:plan-feature`), so a project's
   own skills keep working, and every rule module can be switched off per project.
 
 ## What you get
@@ -64,13 +64,13 @@ flowchart LR
 
 | Skill | Purpose |
 | --- | --- |
-| `/solo-keel:plan-feature` | A reviewed plan with acceptance criteria, test plan and delegation split, before any code |
-| `/solo-keel:implement-task` | Execute an approved plan step by step: test first, verify, keep progress current |
-| `/solo-keel:delegate-task`, `/solo-keel:review-delegated` | Hand bounded work to a cheaper agent in an isolated worktree, then review it |
-| `/solo-keel:adr` | Architecture Decision Records for invariants, dependencies and contracts |
-| `/solo-keel:commit` | One Conventional Commit, after the project's check passes |
-| `/solo-keel:clean-code`, `/solo-keel:ui-ux` | Review against the code and UI standards |
-| `/solo-keel:progress`, `/solo-keel:setup` | Report or update progress; set a project up |
+| `/doczi:plan-feature` | A reviewed plan with acceptance criteria, test plan and delegation split, before any code |
+| `/doczi:implement-task` | Execute an approved plan step by step: test first, verify, keep progress current |
+| `/doczi:delegate-task`, `/doczi:review-delegated` | Hand bounded work to a cheaper agent in an isolated worktree, then review it |
+| `/doczi:adr` | Architecture Decision Records for invariants, dependencies and contracts |
+| `/doczi:commit` | One Conventional Commit, after the project's check passes |
+| `/doczi:clean-code`, `/doczi:ui-ux` | Review against the code and UI standards |
+| `/doczi:progress`, `/doczi:setup` | Report or update progress; set a project up |
 
 **Reviewer agents**: `security-reviewer`, `test-writer`, `ux-reviewer`, `perf-reviewer`.
 
@@ -119,24 +119,24 @@ gh auth setup-git
 **Claude Code**
 
 ```text
-/plugin marketplace add meygh/solo-keel
-/plugin install solo-keel@solo-keel
+/plugin marketplace add meygh/doczi
+/plugin install doczi@doczi
 ```
 
-Optional: `/plugin install ui-ux-pro-max@solo-keel` and `/plugin install engineering@solo-keel`.
+Optional: `/plugin install ui-ux-pro-max@doczi` and `/plugin install engineering@doczi`.
 The MCP server is included. From a local clone you can also run
-`/plugin marketplace add /path/to/solo-keel`.
+`/plugin marketplace add /path/to/doczi`.
 
 **Codex**
 
 ```bash
-codex plugin marketplace add meygh/solo-keel
+codex plugin marketplace add meygh/doczi
 ```
 ```bash
-codex plugin add solo-keel@solo-keel
+codex plugin add doczi@doczi
 ```
 ```bash
-codex mcp add solo-keel -- node /path/to/solo-keel/mcp/server.mjs
+codex mcp add doczi -- node /path/to/doczi/mcp/server.mjs
 ```
 
 Codex asks you to trust the plugin's hooks once. The MCP server is added by path because Codex
@@ -145,27 +145,27 @@ does not expand plugin paths in MCP settings.
 ### 3. Install the command line (dashboard, CLI, git hook)
 
 ```bash
-npm install -g github:meygh/solo-keel
+npm install -g github:meygh/doczi
 ```
 
 ### 4. Connect a project
 
 ```bash
 cd your-project
-solo-keel init --check "make check"
+doczi init --check "make check"
 ```
 
-`init` creates `.solo-keel.json` and a starter progress file, and registers the project with
+`init` creates `.doczi.json` and a starter progress file, and registers the project with
 the dashboard. It never overwrites existing files. Inside an agent session,
-`/solo-keel:setup` does the same interactively and drafts milestones from your roadmap.
+`/doczi:setup` does the same interactively and drafts milestones from your roadmap.
 
 ### 5. Daily use
 
 ```bash
-solo-keel progress
+doczi progress
 ```
 ```bash
-solo-keel serve
+doczi serve
 ```
 
 Your agents keep the progress current as they work: steps move to in progress, waiting for your
@@ -175,19 +175,20 @@ check or blocked (with a reason), and questions for you land on the task.
 
 | Command | What it does |
 | --- | --- |
-| `solo-keel init [dir]` | Set up a project (`--check`, `--rules`, `--progress`, `--page`, `--no-register`) |
-| `solo-keel progress` | Summary: overall, per milestone, blocked, waiting for your check, open questions, next up |
-| `solo-keel progress --milestone M0` | Every task and step, numbered |
-| `solo-keel progress set M0 "Task" 2 blocked --reason "…"` | Change a step (by name, part of a name, or number) |
-| `solo-keel progress add M1 "Task" "Step"` | Add a step |
-| `solo-keel progress ask M1 "Task" "Question?"` · `answer M1 "Task" 1 "Answer"` | Questions and answers |
-| `solo-keel projects [add <path> \| remove <id>]` | The dashboard's project list |
-| `solo-keel serve [--runtime node\|php\|python] [--port N]` | Start the dashboard |
-| `solo-keel git-hooks` | Install the commit-msg hook that strips assistant attribution |
-| `solo-keel check-ai [files…]` | Scan files for AI tool or vendor mentions |
-| `solo-keel mcp` | Run the MCP server on stdio |
+| `doczi init [dir]` | Set up a project (`--check`, `--rules`, `--progress`, `--page`, `--no-register`) |
+| `doczi progress` | Summary: overall, per milestone, blocked, waiting for your check, open questions, next up |
+| `doczi progress --milestone M0` | Every task and step, numbered |
+| `doczi progress set M0 "Task" 2 blocked --reason "…"` | Change a step (by name, part of a name, or number) |
+| `doczi progress add M1 "Task" "Step"` | Add a step |
+| `doczi progress ask M1 "Task" "Question?"` · `answer M1 "Task" 1 "Answer"` | Questions and answers |
+| `doczi projects [add <path> \| remove <id>]` | The dashboard's project list |
+| `doczi serve [--runtime node\|php\|python] [--port N]` | Start the dashboard |
+| `doczi git-hooks` | Install the commit-msg hook that strips assistant attribution |
+| `doczi migrate [dir]` | Move a project set up as solo-keel to doczi (see below) |
+| `doczi check-ai [files…]` | Scan files for AI tool or vendor mentions |
+| `doczi mcp` | Run the MCP server on stdio |
 
-## Configuration: `.solo-keel.json`
+## Configuration: `.doczi.json`
 
 ```json
 {
@@ -225,6 +226,31 @@ The progress file format, with every status, questions and document links, is de
 - **Reviewed.** The release has been through two security reviews, with a regression test for
   every finding.
 
+## Upgrading from solo-keel
+
+doczi was called solo-keel before v0.1. Until v0.3, doczi still reads the old names. When both
+exist, the new name wins.
+
+| Before | Now |
+| --- | --- |
+| `.solo-keel.json` | `.doczi.json` |
+| `~/.solo-keel/projects.json` | `~/.doczi/projects.json` |
+| `SOLO_KEEL_HOME`, `SOLO_KEEL_PORT`, `SOLO_KEEL_LOCK_TIMEOUT_MS`, `SOLO_KEEL_DEBUG` | `DOCZI_*` |
+| `/solo-keel:<skill>`, the `solo-keel` CLI, `meygh/solo-keel` | `/doczi:<skill>`, the `doczi` CLI, `meygh/doczi` |
+
+1. Switch the plugin.
+   - Claude Code: run `/plugin marketplace remove solo-keel`, then
+     `/plugin marketplace add meygh/doczi`, then `/plugin install doczi@doczi`.
+   - Codex: the same steps with `codex plugin marketplace` and `codex plugin add`. Then add the
+     MCP server again under the name `doczi`.
+2. Reinstall the CLI: run `npm uninstall -g solo-keel`, then `npm install -g github:meygh/doczi`.
+3. In each project, run `doczi migrate`.
+   - It renames the config file and copies the project list.
+   - It refuses if `.doczi.json` already exists.
+   - If the project uses the commit-msg hook, run `doczi git-hooks` again.
+
+Until a project is migrated, each agent session starts with a one-line reminder.
+
 ## Compatibility
 
 | Component | Requirement |
@@ -241,6 +267,7 @@ The progress file format, with every status, questions and document links, is de
   with concurrent writers has shipped. Plan: [docs/plans/storage.md](docs/plans/storage.md).
 - Registering the MCP server automatically on Codex install.
 - Editing step titles and notes from the dashboard.
+- v0.3: stop reading the legacy solo-keel names ([ADR 0001](docs/adr/0001-rename-to-doczi.md)).
 
 ## Development
 

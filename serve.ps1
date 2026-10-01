@@ -1,4 +1,4 @@
-﻿# solo-keel dashboard launcher (Windows PowerShell 5.1+ and PowerShell 7). Picks Node.js, PHP or Python 3.
+﻿# doczi dashboard launcher (Windows PowerShell 5.1+ and PowerShell 7). Picks Node.js, PHP or Python 3.
 # Usage: .\serve.cmd                                   interactive menu
 #        .\serve.cmd -Runtime php -Port 4800 -NoOpen
 param(
@@ -42,9 +42,10 @@ if (-not $installed) {
   exit 1
 }
 
-$keelHome = if ($env:SOLO_KEEL_HOME) { $env:SOLO_KEEL_HOME } else { Join-Path $HOME ".solo-keel" }
+$docziHome = if ($env:DOCZI_HOME) { $env:DOCZI_HOME } elseif ($env:SOLO_KEEL_HOME) { $env:SOLO_KEEL_HOME } else { Join-Path $HOME ".doczi" } # SOLO_KEEL_HOME: legacy
+if (-not $env:DOCZI_HOME -and -not $env:SOLO_KEEL_HOME -and -not (Test-Path (Join-Path $docziHome "projects.json")) -and (Test-Path (Join-Path $HOME ".solo-keel/projects.json"))) { $docziHome = Join-Path $HOME ".solo-keel" } # legacy home
 $count = 0
-$registry = Join-Path $keelHome "projects.json"
+$registry = Join-Path $docziHome "projects.json"
 if (Test-Path $registry) { try { $count = @((Get-Content $registry -Raw | ConvertFrom-Json).projects).Count } catch { } }
 
 if (-not $Runtime) {
@@ -52,9 +53,9 @@ if (-not $Runtime) {
   if ($Yes) { $Runtime = $installed[0].Key }
   else {
     Write-Host ""
-    Write-Host "  solo-keel" -NoNewline -ForegroundColor White; Write-Host " · project dashboard"
+    Write-Host "  doczi" -NoNewline -ForegroundColor White; Write-Host " · project dashboard"
     Write-Host "  ──────────────────────────────" -ForegroundColor DarkGray
-    Write-Host "  Projects registered: $count  ($keelHome)" -ForegroundColor DarkGray
+    Write-Host "  Projects registered: $count  ($docziHome)" -ForegroundColor DarkGray
     Write-Host ""
     Write-Host "  Serve it with:"
     for ($i = 0; $i -lt $runtimes.Count; $i++) {
@@ -111,13 +112,13 @@ if (-not $NoOpen -and -not $Open -and -not $Yes) {
 }
 
 $url = "http://localhost:$Port/"
-$env:SOLO_KEEL_PORT = "$Port"
+$env:DOCZI_PORT = "$Port"
 if ($openBrowser) {
   Start-Job -ScriptBlock { param($u) Start-Sleep -Seconds 1; Start-Process $u } -ArgumentList $url | Out-Null
 }
 Write-Host ""
 switch ($Runtime) {
   "node"   { & node "server/node/server.mjs" --port $Port }
-  "php"    { Write-Host "solo-keel dashboard (PHP $($chosen.Version)) → $url   Stop with Ctrl+C."; & php -S "127.0.0.1:$Port" "server/php/router.php" }
+  "php"    { Write-Host "doczi dashboard (PHP $($chosen.Version)) → $url   Stop with Ctrl+C."; & php -S "127.0.0.1:$Port" "server/php/router.php" }
   "python" { & $pythonCmd "server/python/server.py" --port $Port }
 }

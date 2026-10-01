@@ -6,7 +6,7 @@ Status: draft, step 1 done · Owner: Meisam Ghanbari
 
 Keep the progress file readable in git for everyday projects, and give large or busy projects
 a storage that handles many writers, keeps history and loads only what a view needs, without
-changing how agents, the CLI or the dashboard talk to solo-keel.
+changing how agents, the CLI or the dashboard talk to doczi.
 
 ## What hurts today
 
@@ -22,7 +22,7 @@ history are.
 
 ## Design
 
-`.solo-keel.json` gains `"storage": "json" | "sqlite"` (default `json`).
+`.doczi.json` gains `"storage": "json" | "sqlite"` (default `json`).
 
 1. **JSON (default).**
    - Every change runs under a lock (step 1, below).
@@ -36,14 +36,14 @@ history are.
 
    Only the milestone a view opens is loaded. `.gitignore` gets `progress.db-wal` and
    `progress.db-shm`; whether `progress.db` itself is committed is the project's choice.
-3. **Moving between them.** `solo-keel export [--split]` writes readable JSON (for review or to
-   commit a snapshot); `solo-keel import` loads JSON into SQLite.
+3. **Moving between them.** `doczi export [--split]` writes readable JSON (for review or to
+   commit a snapshot); `doczi import` loads JSON into SQLite.
 4. **A store interface** in `lib/store`: `read(view)`, `change(fn)`, `history(filter)`. It is
    implemented by `json` and `sqlite`. The CLI, MCP and Node server call only this. PHP and
    Python get the same two backends behind their existing functions.
 5. **API.** `GET /api/projects/{id}/history?step=…` (all three servers), and a "History" panel
    per step in the dashboard. The MCP tool `progress_history`.
-6. **Cross-project index (optional).** `~/.solo-keel/index.db`, rebuilt from each project's
+6. **Cross-project index (optional).** `~/.doczi/index.db`, rebuilt from each project's
    store, for search across projects. It is never a source of truth.
 
 ## Runtime support (checked on this machine)
@@ -89,5 +89,5 @@ No new dependencies.
 
 1. Should agents' writes in SQLite projects also append a JSON export, so the change still shows
    up in pull requests?
-2. What should the default split threshold for `solo-keel init` be (for example, more than 500
+2. What should the default split threshold for `doczi init` be (for example, more than 500
    steps suggests the split layout)?

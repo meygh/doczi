@@ -1,4 +1,4 @@
 #!/bin/sh
-# solo-keel-managed commit-msg hook (solo-keel replaces this file on update; put your own hook elsewhere).
-# Strips assistant attribution from commit messages; the logic is in solo-keel-commit-msg.cjs.
-exec node "$(dirname "$0")/solo-keel-commit-msg.cjs" "$@"
+# doczi-managed commit-msg hook (doczi replaces this file on update; put your own hook elsewhere).
+# Strips assistant attribution from commit messages; the logic is in doczi-commit-msg.cjs.
+exec node "$(dirname "$0")/doczi-commit-msg.cjs" "$@"

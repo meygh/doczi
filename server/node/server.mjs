@@ -1,5 +1,5 @@
 #!/usr/bin/env node
-// solo-keel dashboard + REST API on Node.js. Contract: docs/API.md (same as the PHP and Python servers).
+// doczi dashboard + REST API on Node.js. Contract: docs/API.md (same as the PHP and Python servers).
 // Usage: node server/node/server.mjs [--port 4800]
 import fs from "node:fs";
 import http from "node:http";
@@ -9,11 +9,12 @@ import { applyStatus, linkedDocs, parse, STATUSES } from "../../lib/progress.mjs
 import { get, list } from "../../lib/registry.mjs";
 import { assertInside, openProject, readProgress, writeProgress } from "../../lib/store.mjs";
 import { LockBusyError, withLockSync } from "../../lib/lock.mjs";
+import { env } from "../../lib/names.mjs";
 
 const repo = fileURLToPath(new URL("../../", import.meta.url));
 const VERSION = JSON.parse(fs.readFileSync(path.join(repo, "package.json"), "utf8")).version;
 const argPort = process.argv.indexOf("--port");
-const PORT = Number(argPort > 0 ? process.argv[argPort + 1] : process.env.SOLO_KEEL_PORT || 4800);
+const PORT = Number(argPort > 0 ? process.argv[argPort + 1] : env("PORT") || 4800);
 const MAX_BODY = 64 * 1024;
 const MAX_DOC = 2 * 1024 * 1024;
 const MAX_REASON = 2000;
@@ -184,5 +185,5 @@ const server = http.createServer(async (req, res) => {
 server.requestTimeout = 15000;
 
 server.listen(PORT, "127.0.0.1", () => {
-  console.log(`solo-keel dashboard (Node.js ${process.versions.node}) → http://localhost:${PORT}/   Stop with Ctrl+C.`);
+  console.log(`doczi dashboard (Node.js ${process.versions.node}) → http://localhost:${PORT}/   Stop with Ctrl+C.`);
 });

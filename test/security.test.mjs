@@ -12,21 +12,21 @@ import { openProject, readProgress, writeProgress } from "../lib/store.mjs";
 import { summaryText } from "../lib/report.mjs";
 
 const hooks = fileURLToPath(new URL("../hooks/", import.meta.url));
-const cli = fileURLToPath(new URL("../cli/solo-keel.mjs", import.meta.url));
+const cli = fileURLToPath(new URL("../cli/doczi.mjs", import.meta.url));
 const mcp = fileURLToPath(new URL("../mcp/server.mjs", import.meta.url));
 const sample = { milestones: [{ id: "M0", name: "Start", tasks: [{ name: "T", steps: [{ status: "todo", title: "a" }] }] }] };
 
 let tmp;
-before(() => { tmp = fs.mkdtempSync(path.join(os.tmpdir(), "solo-keel-sec-")); process.env.SOLO_KEEL_HOME = path.join(tmp, "home"); });
+before(() => { tmp = fs.mkdtempSync(path.join(os.tmpdir(), "doczi-sec-")); process.env.DOCZI_HOME = path.join(tmp, "home"); });
 
 function mkProject(name, config) {
   const dir = path.join(tmp, name);
   fs.mkdirSync(path.join(dir, ".git"), { recursive: true });
-  if (config) fs.writeFileSync(path.join(dir, ".solo-keel.json"), JSON.stringify(config));
+  if (config) fs.writeFileSync(path.join(dir, ".doczi.json"), JSON.stringify(config));
   return dir;
 }
 const canSymlink = (() => {
-  const probe = path.join(os.tmpdir(), `solo-keel-link-${process.pid}`);
+  const probe = path.join(os.tmpdir(), `doczi-link-${process.pid}`);
   try { fs.symlinkSync(os.tmpdir(), probe, "dir"); fs.unlinkSync(probe); return true; } catch { return false; }
 })();
 
@@ -123,13 +123,13 @@ test("MCP refuses writes to an unregistered path", async () => {
   assert.equal(readProgress(openProject(other)).milestones[0].tasks[0].steps[0].status, "todo");
 });
 
-// L2: a user's own hook that calls solo-keel is still never replaced.
-test("git-hooks leaves a user's hook alone even when it already calls solo-keel", () => {
+// L2: a user's own hook that calls doczi is still never replaced.
+test("git-hooks leaves a user's hook alone even when it already calls doczi", () => {
   const dir = mkProject("l2");
   spawnSync("git", ["init", "-q", dir]);
   const hook = path.join(dir, ".git", "hooks", "commit-msg");
   fs.mkdirSync(path.dirname(hook), { recursive: true });
-  const mine = '#!/bin/sh\necho mine\nnode "$(dirname "$0")/solo-keel-commit-msg.cjs" "$1" || exit 1\n';
+  const mine = '#!/bin/sh\necho mine\nnode "$(dirname "$0")/doczi-commit-msg.cjs" "$1" || exit 1\n';
   fs.writeFileSync(hook, mine);
   spawnSync(process.execPath, [cli, "git-hooks"], { cwd: dir, encoding: "utf8" });
   assert.equal(fs.readFileSync(hook, "utf8"), mine);

@@ -1,14 +1,14 @@
 {
   "$schema": "https://anthropic.com/claude-code/marketplace.schema.json",
-  "name": "solo-keel",
-  "description": "solo-keel and the upstream skills it recommends, pinned to reviewed versions.",
+  "name": "doczi",
+  "description": "doczi and the upstream skills it recommends, pinned to reviewed versions.",
   "owner": {
     "name": "Meisam Ghanbari",
     "url": "https://github.com/meygh"
   },
   "plugins": [
     {
-      "name": "solo-keel",
+      "name": "doczi",
       "source": "./",
       "description": "Working rules, workflow skills, reviewer agents and project progress tracking.",
       "category": "productivity"

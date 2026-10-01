@@ -1,25 +1,25 @@
 {
-  "name": "solo-keel",
+  "name": "doczi",
   "version": "0.1.0",
   "description": "Working rules, workflow skills, reviewer agents and project progress tracking for every project, without overriding a project's own setup.",
   "author": {
     "name": "Meisam Ghanbari",
     "url": "https://github.com/meygh"
   },
-  "homepage": "https://github.com/meygh/solo-keel",
-  "repository": "https://github.com/meygh/solo-keel",
+  "homepage": "https://github.com/meygh/doczi",
+  "repository": "https://github.com/meygh/doczi",
   "license": "MIT",
   "keywords": ["workflow", "planning", "tdd", "code-review", "clean-code", "ui-ux", "progress", "milestones"],
   "skills": "./skills/",
   "hooks": "./hooks/hooks.json",
   "interface": {
-    "displayName": "solo-keel",
+    "displayName": "doczi",
     "shortDescription": "Working rules, skills and progress tracking",
     "longDescription": "Plan, then build; test first; smallest diff; no AI footprint. Workflow skills for planning, implementing, delegating and reviewing, plus milestone progress that agents keep current.",
     "developerName": "Meisam Ghanbari",
     "category": "Productivity",
     "capabilities": ["Instructions", "Lifecycle hooks"],
-    "websiteURL": "https://github.com/meygh/solo-keel",
+    "websiteURL": "https://github.com/meygh/doczi",
     "defaultPrompt": [
       "Where does this project stand?",
       "Plan this feature before writing code.",

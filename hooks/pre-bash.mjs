@@ -14,7 +14,7 @@ guarded(() => {
   const patches = patchesIn(command);
   if (patches.length) {
     const problems = checkChanges(changesFromPatches(patches, input.cwd || process.cwd()), ctx);
-    if (problems.length) block(["solo-keel blocked this patch:", ...problems.map((p) => `- ${p}`), ...(problems.some((p) => p.includes(" line ")) ? [AI_RULE] : [])]);
+    if (problems.length) block(["doczi blocked this patch:", ...problems.map((p) => `- ${p}`), ...(problems.some((p) => p.includes(" line ")) ? [AI_RULE] : [])]);
   }
 
   if (!ctx.config?.aiFootprint.check) process.exit(0);
@@ -24,7 +24,7 @@ guarded(() => {
   const hits = scanText(text.replace(/\\n/g, "\n"), ctx.config.aiFootprint.terms);
   if (hits.length) {
     block([
-      "solo-keel blocked this command: commit, tag and PR text must not mention AI tools, vendors or assistant co-authors.",
+      "doczi blocked this command: commit, tag and PR text must not mention AI tools, vendors or assistant co-authors.",
       ...hits.map((h) => `- ${h.text}`),
       "Remove those parts and run it again.",
     ]);

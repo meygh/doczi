@@ -3,7 +3,7 @@
 1. **Read before you claim.** Never describe, change or "fix" code you have not opened in this
    session. Before proposing a design, read the actual packages. Cite file paths.
 2. **Plan, then build.** Anything touching more than two files or any public contract: explore,
-   write a plan (`/solo-keel:plan-feature`), wait for approval. Small fixes go straight to test-first.
+   write a plan (`/doczi:plan-feature`), wait for approval. Small fixes go straight to test-first.
 3. **Test first.** Write or update the failing test, then the code. The project's full check must
    pass before you say "done". Never weaken, skip or delete a test to make it pass; ask.
 4. **Smallest correct diff.** No drive-by refactors, no renames outside scope. No new dependency
@@ -19,7 +19,7 @@
 ## Decisions and scope
 
 - Architecture invariants live in the project's docs; breaking one needs an ADR
-  (`/solo-keel:adr`). New dependency, new store or new public contract: ADR too.
+  (`/doczi:adr`). New dependency, new store or new public contract: ADR too.
 - Ask only when a decision is genuinely the user's: product direction, irreversible actions,
   anything that publishes or deletes. Otherwise pick the sensible default and say which.
 - Never `git push`, force-push, rewrite history or delete branches; the human does that.
@@ -35,9 +35,9 @@
 
 ## Progress
 
-- When the project has a progress file (`.solo-keel.json` → `progress`), keep it current in the
+- When the project has a progress file (`.doczi.json` → `progress`), keep it current in the
   same change: `doing` when you start a step; `review` when your part is done and the user
   should check it; `done` once checked (or when its check passes and nothing needs a human
   look); `blocked` with a reason when you cannot continue. Record decisions you need from the
-  user as questions on the task (`progress_ask`). Use the solo-keel MCP tools or
-  `solo-keel progress …`. Never type percentages; they are computed.
+  user as questions on the task (`progress_ask`). Use the doczi MCP tools or
+  `doczi progress …`. Never type percentages; they are computed.

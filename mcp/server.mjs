@@ -1,6 +1,6 @@
 #!/usr/bin/env node
-// solo-keel MCP server (stdio, newline-delimited JSON-RPC 2.0). No dependencies.
-// Agents use it to read and update a project's progress and to fetch solo-keel rules.
+// doczi MCP server (stdio, newline-delimited JSON-RPC 2.0). No dependencies.
+// Agents use it to read and update a project's progress and to fetch doczi rules.
 import fs from "node:fs";
 import path from "node:path";
 import readline from "node:readline";
@@ -18,7 +18,7 @@ function writableProject(ref) {
   const here = openProject();
   const same = (a, b) => path.resolve(a).toLowerCase() === path.resolve(b).toLowerCase();
   if (!ref || same(project.root, here.root) || getProject(ref) || listProjects().some((p) => same(p.path, project.root))) return project;
-  throw new Error(`Writes go only to the current project or registered projects; register this one first with "solo-keel projects add ${project.root}".`);
+  throw new Error(`Writes go only to the current project or registered projects; register this one first with "doczi projects add ${project.root}".`);
 }
 
 const root = fileURLToPath(new URL("..", import.meta.url));
@@ -109,13 +109,13 @@ ${listText(readProgress(openProject(a.project)), a.milestone)}`,
   },
   {
     name: "projects_list",
-    description: "Projects registered with solo-keel (id, name, path).",
+    description: "Projects registered with doczi (id, name, path).",
     inputSchema: { type: "object", properties: {} },
-    run: () => listProjects().map((p) => `${p.id}  ${p.name}  ${p.path}`).join("\n") || "No projects registered. Run \"solo-keel init\" in a project.",
+    run: () => listProjects().map((p) => `${p.id}  ${p.name}  ${p.path}`).join("\n") || "No projects registered. Run \"doczi init\" in a project.",
   },
   {
     name: "rules_get",
-    description: `The text of a solo-keel rule module: ${RULE_MODULES.join(", ")}. Default: all.`,
+    description: `The text of a doczi rule module: ${RULE_MODULES.join(", ")}. Default: all.`,
     inputSchema: { type: "object", properties: { module: { type: "string", enum: RULE_MODULES } } },
     run: (a) => (a.module ? [knownModule(a.module)] : RULE_MODULES).map((m) => fs.readFileSync(path.join(root, "rules", `${m}.md`), "utf8").trim()).join("\n\n"),
   },
@@ -128,8 +128,8 @@ function handle(msg) {
       return {
         protocolVersion: SUPPORTED.includes(params.protocolVersion) ? params.protocolVersion : SUPPORTED[0],
         capabilities: { tools: {} },
-        serverInfo: { name: "solo-keel", version },
-        instructions: "Project progress (milestones → tasks → steps) and solo-keel working rules. Keep step statuses current as you work.",
+        serverInfo: { name: "doczi", version },
+        instructions: "Project progress (milestones → tasks → steps) and doczi working rules. Keep step statuses current as you work.",
       };
     case "ping":
       return {};

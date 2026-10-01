@@ -1,6 +1,6 @@
-# Working on solo-keel
+# Working on doczi
 
-solo-keel's own rules apply here too (`rules/`), plus these:
+doczi's own rules apply here too (`rules/`), plus these:
 
 - **No dependencies.** Node.js ≥ 20 standard library only, in every script, hook and server.
   PHP (≥ 8.1) and Python (≥ 3.9) servers use only what ships with the language. Plugins are
@@ -14,7 +14,7 @@ solo-keel's own rules apply here too (`rules/`), plus these:
 - **Hooks never break a session.** Every hook body runs inside `guarded()`; only a deliberate
   block exits with code 2. Hooks must work with Claude Code and Codex payloads (see
   `test/hooks.test.mjs`).
-- **Never overwrite user files.** `solo-keel init`, `solo-keel git-hooks` and anything that writes into a
+- **Never overwrite user files.** `doczi init`, `doczi git-hooks` and anything that writes into a
   project keeps existing files and says so.
 - **Generic only.** No project-specific names, stacks or paths in rules, skills or agents.
   Projects add their own on top.

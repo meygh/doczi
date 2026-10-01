@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# solo-keel dashboard launcher (macOS, Linux, Git Bash). Picks Node.js, PHP or Python 3.
+# doczi dashboard launcher (macOS, Linux, Git Bash). Picks Node.js, PHP or Python 3.
 # Usage: ./serve                              interactive menu
 #        ./serve --runtime php --port 4800 --no-open
 set -uo pipefail
@@ -33,7 +33,11 @@ names=(node php python)
 labels=("Node.js" "PHP" "Python 3")
 versions=("$node_v" "$php_v" "$py_v")
 
-home="${SOLO_KEEL_HOME:-$HOME/.solo-keel}"
+home="${DOCZI_HOME:-${SOLO_KEEL_HOME:-}}" # SOLO_KEEL_HOME: legacy, read until v0.3
+if [ -z "$home" ]; then
+  home="$HOME/.doczi"
+  [ ! -f "$home/projects.json" ] && [ -f "$HOME/.solo-keel/projects.json" ] && home="$HOME/.solo-keel" # legacy home
+fi
 count=0
 [ -f "$home/projects.json" ] && count=$(grep -c '"id"' "$home/projects.json" 2>/dev/null || echo 0)
 
@@ -41,7 +45,7 @@ port_busy() { (exec 3<>"/dev/tcp/127.0.0.1/$1") 2>/dev/null; }
 
 if [ -z "$runtime" ] && [ $yes -eq 0 ]; then
   echo
-  echo "  ${b}solo-keel${r} · project dashboard"
+  echo "  ${b}doczi${r} · project dashboard"
   echo "  ${d}──────────────────────────────${r}"
   echo "  ${d}Projects registered: $count  ($home)${r}"
   echo
@@ -123,9 +127,9 @@ if [ "$open" = "yes" ]; then
 fi
 
 echo
-export SOLO_KEEL_PORT=$port
+export DOCZI_PORT=$port
 case "$runtime" in
   node) exec node server/node/server.mjs --port "$port" ;;
-  php) echo "solo-keel dashboard (PHP $php_v) → $url   Stop with Ctrl+C."; exec php -S "127.0.0.1:$port" server/php/router.php ;;
+  php) echo "doczi dashboard (PHP $php_v) → $url   Stop with Ctrl+C."; exec php -S "127.0.0.1:$port" server/php/router.php ;;
   python) exec "$py_cmd" server/python/server.py --port "$port" ;;
 esac

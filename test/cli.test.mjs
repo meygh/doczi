@@ -7,35 +7,35 @@ import path from "node:path";
 import { fileURLToPath } from "node:url";
 import { DEFAULT_TERMS } from "../lib/ai-terms.mjs";
 
-const cli = fileURLToPath(new URL("../cli/solo-keel.mjs", import.meta.url));
-const hookTemplate = fileURLToPath(new URL("../templates/git-hooks/solo-keel-commit-msg.cjs", import.meta.url));
+const cli = fileURLToPath(new URL("../cli/doczi.mjs", import.meta.url));
+const hookTemplate = fileURLToPath(new URL("../templates/git-hooks/doczi-commit-msg.cjs", import.meta.url));
 let dir, env;
 
 beforeEach(() => {
-  const tmp = fs.mkdtempSync(path.join(os.tmpdir(), "solo-keel-cli-"));
+  const tmp = fs.mkdtempSync(path.join(os.tmpdir(), "doczi-cli-"));
   dir = path.join(tmp, "Shop App");
   fs.mkdirSync(dir);
   spawnSync("git", ["init", "-q", dir]);
-  env = { ...process.env, SOLO_KEEL_HOME: path.join(tmp, "home") };
+  env = { ...process.env, DOCZI_HOME: path.join(tmp, "home") };
 });
 
 const run = (...args) => spawnSync(process.execPath, [cli, ...args], { cwd: dir, env, encoding: "utf8" });
 
-test("init writes .solo-keel.json and a starter progress file, registers the project, and never overwrites", () => {
+test("init writes .doczi.json and a starter progress file, registers the project, and never overwrites", () => {
   let r = run("init", "--check", "make check", "--rules", "core,clean-code");
   assert.equal(r.status, 0, r.stderr);
-  const config = JSON.parse(fs.readFileSync(path.join(dir, ".solo-keel.json"), "utf8"));
+  const config = JSON.parse(fs.readFileSync(path.join(dir, ".doczi.json"), "utf8"));
   assert.equal(config.name, "Shop App");
   assert.equal(config.check, "make check");
   assert.deepEqual(config.rules, ["core", "clean-code"]);
   assert.ok(fs.existsSync(path.join(dir, "docs/progress/milestones.json")));
   assert.match(r.stdout, /Registered as "shop-app"/);
 
-  fs.writeFileSync(path.join(dir, ".solo-keel.json"), JSON.stringify({ name: "Mine" }));
+  fs.writeFileSync(path.join(dir, ".doczi.json"), JSON.stringify({ name: "Mine" }));
   r = run("init", "--check", "other");
   assert.equal(r.status, 0);
   assert.match(r.stdout, /kept/i);
-  assert.equal(JSON.parse(fs.readFileSync(path.join(dir, ".solo-keel.json"), "utf8")).name, "Mine");
+  assert.equal(JSON.parse(fs.readFileSync(path.join(dir, ".doczi.json"), "utf8")).name, "Mine");
 });
 
 test("init --page copies the dashboard next to the progress file", () => {
@@ -101,7 +101,7 @@ test("git-hooks installs a commit-msg hook that strips attribution and refuses t
   assert.match(fs.readFileSync(hook, "utf8"), /echo mine/);
 });
 
-test("the standalone commit-msg hook uses the same terms as solo-keel", () => {
+test("the standalone commit-msg hook uses the same terms as doczi", () => {
   const text = fs.readFileSync(hookTemplate, "utf8");
   const embedded = JSON.parse(text.match(/const TERMS = (\[[\s\S]*?\]);/)[1]);
   assert.deepEqual(embedded, DEFAULT_TERMS);
