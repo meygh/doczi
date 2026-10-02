@@ -202,6 +202,7 @@ check or blocked (with a reason), and questions for you land on the task.
 | `doczi git-hooks` | Install the commit-msg hook that strips assistant attribution |
 | `doczi migrate [dir]` | Move a project set up as solo-keel to doczi (see below) |
 | `doczi check-ai [files…]` | Scan files for AI tool or vendor mentions |
+| `doczi check-paths [files…] [--staged]` | Scan files for paths of this machine (error) and other absolute paths (warning) |
 | `doczi mcp` | Run the MCP server on stdio |
 
 ## Configuration: `.doczi.json`
@@ -222,6 +223,37 @@ Every field is optional:
   already says the same.
 - `aiFootprint.allow` lists paths that must name AI vendors (for example provider adapters).
 - `protect` lists files agents must not edit.
+
+### Settings for one machine: `.doczi.local.json`
+
+A project is often checked out in different places: another drive, another user, another
+proxy. Keep what belongs to one machine out of the files you share. `doczi init` adds
+`.doczi.local.json` to `.gitignore`; create it next to `.doczi.json`:
+
+```json
+{
+  "check": "php vendor/bin/phpunit",
+  "notes": ["git needs -c safe.directory=<this checkout> here", "the session proxy is the one that works"]
+}
+```
+
+- `check` replaces the project's check command on this machine.
+- `notes` (up to 20 lines of 300 characters) are shown to the agent at the start of every
+  session, with the project root on this machine.
+- The file is ignored when it is not valid JSON, is larger than 64 KB or is a link.
+
+Shared files must not name this machine's folders. The edit hook blocks text that contains the
+project root or the home folder of the machine it runs on, and `doczi check-paths` scans the
+tracked files: this machine's paths are errors, any other absolute path (`D:...`,
+`/home/<user>/...`) is a warning. `.doczi.json` can switch it off or exempt files:
+
+```json
+{ "localPaths": { "check": true, "allow": ["docs/windows-setup.md"] } }
+```
+
+`.doczi.local.json` and `*.local.*` files are always exempt. `doczi init` also refuses to run
+while the branch it follows already has `.doczi.json` or the progress file that the checkout
+lacks (run `git fetch` and `git pull` first), so two people never set the project up twice.
 
 The progress file format, with every status, questions and document links, is described in
 [docs/API.md](docs/API.md). Its schema is
