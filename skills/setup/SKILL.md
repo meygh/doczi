@@ -6,6 +6,8 @@ argument-hint: "[project path, default: current]"
 
 Set up doczi in: $ARGUMENTS (nothing given means the current project).
 
+0. Run `git fetch`, then check whether the branch already has `.doczi.json` or the progress
+   file. If it does, `git pull` instead of running `doczi init`.
 1. Read what exists first: `CLAUDE.md`, `AGENTS.md`, `.claude/`, `.codex/`, `.agents/`,
    `.githooks/`, `core.hooksPath`, and any roadmap or milestone document. List what you found.
 2. Propose the `.doczi.json` values and wait for a yes:
@@ -22,4 +24,7 @@ Set up doczi in: $ARGUMENTS (nothing given means the current project).
    instead and say so.
 5. If there is a roadmap but no progress file, draft the milestones from it (see
    `/doczi:progress`) and show the draft before writing.
-6. Finish with `doczi progress` to show the starting point.
+6. Anything that belongs to this machine only (drive letters, tool paths, proxies) goes in
+   `.doczi.local.json`, which `doczi init` keeps out of git; never in shared files. Run
+   `doczi check-paths` to find machine paths already committed.
+7. Finish with `doczi progress` to show the starting point.

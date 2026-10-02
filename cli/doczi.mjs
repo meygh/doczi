@@ -5,8 +5,9 @@ import fs from "node:fs";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
 import { isAllowed, scanText } from "../lib/ai-terms.mjs";
-import { configFile as findConfigFile, DEFAULT_CONFIG, findRoot, loadConfig, RULE_MODULES } from "../lib/config.mjs";
-import { CONFIG_FILE, env, home, LEGACY_CONFIG_FILE, legacyHome } from "../lib/names.mjs";
+import { configFile as findConfigFile, DEFAULT_CONFIG, findRoot, loadConfig, matchesAny, RULE_MODULES } from "../lib/config.mjs";
+import { foreignPathHits, ownPathHits, ownPaths } from "../lib/machine-paths.mjs";
+import { CONFIG_FILE, env, home, LEGACY_CONFIG_FILE, LOCAL_CONFIG_FILE, legacyHome } from "../lib/names.mjs";
 import { addQuestion, addStep, answerQuestion, format, labelTask, labelText, parse, setStatus, TASK_TYPES } from "../lib/progress.mjs";
 import { list, register, unregister } from "../lib/registry.mjs";
 import { clean, listText, summaryText } from "../lib/report.mjs";
@@ -51,6 +52,8 @@ Usage: doczi <command> [options]
       --out <file>|-         Default <title>-progress-<date>.<format>; - prints it
       --project <id|path>    Another project than the current one
   check-ai [files…]          Find AI tool or vendor mentions (default: all tracked files)
+  check-paths [files…]       Find paths of this machine in tracked files (an error); other
+                             absolute paths are warnings. --staged: only changed files
   git-hooks [dir]            Install the commit-msg hook that strips assistant attribution
   migrate [dir]              Move a project set up before the rename: rename its config file
                              and copy the project list. Never overwrites files.
@@ -85,6 +88,12 @@ function parseArgs(argv) {
 const say = (...lines) => console.log(lines.join("\n"));
 class UsageError extends Error {}
 
+// Does the branch this one follows already contain this file? (False without an upstream.)
+function upstreamHas(root, rel) {
+  const git = (...a) => spawnSync("git", a, { cwd: root, encoding: "utf8" });
+  return git("rev-parse", "--abbrev-ref", "@{u}").status === 0 && git("cat-file", "-e", `@{u}:${rel}`).status === 0;
+}
+
 // ---- commands ----
 function init(args) {
   const root = path.resolve(args._[0] || findRoot(process.cwd()));
@@ -107,6 +116,13 @@ function init(args) {
     return true;
   };
 
+  // A teammate may already have set doczi up on the branch this one follows: creating the files
+  // again would give every merge an add/add conflict. (Run "git fetch" first so the ref is fresh.)
+  const progressRel = typeof args.flags.progress === "string" ? args.flags.progress : DEFAULT_CONFIG.progress;
+  const absent = [path.relative(root, configFile), progressRel].filter((rel) => !occupied(path.join(root, rel)));
+  const upstream = absent.filter((rel) => upstreamHas(root, rel.replace(/\\/g, "/")));
+  if (upstream.length) throw new UsageError(`The upstream branch already has ${upstream.join(" and ")}, which this checkout lacks. Run "git pull" first; doczi init would create a second copy that conflicts with it.`);
+
   if (occupied(configFile) && !fs.lstatSync(configFile).isSymbolicLink()) {
     report.push(`Kept the existing ${path.basename(configFile)}.`);
   } else {
@@ -124,6 +140,19 @@ function init(args) {
     };
     create(configFile, JSON.stringify(config, null, 2) + "\n");
     report.push("Created .doczi.json.");
+  }
+
+  // Machine-specific settings stay out of git.
+  const ignore = path.join(root, ".gitignore");
+  if (!occupied(ignore)) {
+    create(ignore, `${LOCAL_CONFIG_FILE}\n`);
+    report.push(`Created .gitignore with ${LOCAL_CONFIG_FILE} (settings for this machine only).`);
+  } else if (!fs.lstatSync(ignore).isSymbolicLink()) {
+    const text = fs.readFileSync(ignore, "utf8");
+    if (!text.split(/\r?\n/).some((l) => l.trim() === LOCAL_CONFIG_FILE)) {
+      fs.appendFileSync(ignore, `${text === "" || /\n$/.test(text) ? "" : "\n"}${LOCAL_CONFIG_FILE}\n`);
+      report.push(`Added ${LOCAL_CONFIG_FILE} to .gitignore (settings for this machine only).`);
+    }
   }
 
   const project = openProject(root);
@@ -253,6 +282,45 @@ function checkAi(args) {
   }
 }
 
+// Files shared with a team must not name this machine's folders (a colleague's checkout is
+// elsewhere). This machine's own paths are an error; any other absolute path is a warning.
+function checkPaths(args) {
+  const root = findRoot(process.cwd());
+  const config = loadConfig(root);
+  let files = args._;
+  if (!files.length) {
+    const git = spawnSync("git", ["ls-files", ...(args.flags.staged ? ["--cached", "--modified"] : [])], { cwd: root, encoding: "utf8" });
+    if (git.status !== 0) throw new UsageError("Not a git repository; name the files to check.");
+    files = git.stdout.split("\n").filter(Boolean);
+  }
+  const own = ownPaths(fs.realpathSync.native(root), undefined, root);
+  let errors = 0, warnings = 0;
+  for (const f of files) {
+    const abs = path.resolve(root, f);
+    const rel = path.relative(root, abs).replace(/\\/g, "/");
+    if (!fs.existsSync(abs) || fs.statSync(abs).isDirectory() || matchesAny(rel, config.localPaths.allow)) continue;
+    const buf = fs.readFileSync(abs);
+    if (buf.includes(0)) continue; // binary
+    const text = buf.toString("utf8");
+    const mine = ownPathHits(text, own);
+    for (const hit of mine) { errors++; say(`${rel}:${hit.line}: ${hit.text}`); }
+    const seen = new Set(mine.map((h) => h.line));
+    for (const hit of foreignPathHits(text)) {
+      if (seen.has(hit.line)) continue;
+      warnings++;
+      say(`${rel}:${hit.line}: warning: absolute path: ${hit.text}`);
+    }
+  }
+  if (errors) {
+    console.error(`\n${errors} line(s) name a path on this machine. Use a path relative to the project root, or put the value in ${LOCAL_CONFIG_FILE} (never committed); list a file in .doczi.json → localPaths.allow if it must name it.`);
+    process.exitCode = 1;
+  } else if (warnings) {
+    say(`\n${warnings} other absolute path(s); they may not exist on a colleague's machine.`);
+  } else if (args.flags.self || process.stdout.isTTY) {
+    say("No machine paths found.");
+  }
+}
+
 function gitHooks(args) {
   const root = path.resolve(args._[0] || findRoot(process.cwd()));
   const git = spawnSync("git", ["rev-parse", "--git-path", "hooks"], { cwd: root, encoding: "utf8" });
@@ -345,6 +413,7 @@ try {
     case "import": importPlan(parseArgs(rest)); break;
     case "export": exportPlan(parseArgs(rest)); break;
     case "check-ai": checkAi(parseArgs(rest)); break;
+    case "check-paths": checkPaths(parseArgs(rest)); break;
     case "git-hooks": gitHooks(parseArgs(rest)); break;
     case "migrate": migrate(parseArgs(rest)); break;
     case "projects": projects(parseArgs(rest)); break;
