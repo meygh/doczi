@@ -2,7 +2,11 @@
   "name": "doczi",
   "check": "npm run check",
   "progress": "docs/progress/milestones.json",
-  "rules": ["core", "clean-code", "no-ai-footprint"],
+  "rules": [
+    "core",
+    "clean-code",
+    "no-ai-footprint"
+  ],
   "aiFootprint": {
     "check": true,
     "allow": [
@@ -21,5 +25,17 @@
     ],
     "terms": []
   },
-  "protect": [".env", ".env.*", "*.pem", "*.key", "**/secrets/**"]
+  "protect": [
+    ".env",
+    ".env.*",
+    "*.pem",
+    "*.key",
+    "**/secrets/**"
+  ],
+  "localPaths": {
+    "allow": [
+      "test/**",
+      "README.md"
+    ]
+  }
 }
