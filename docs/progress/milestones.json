@@ -1,7 +1,7 @@
 {
   "title": "doczi: where we are",
   "subtitle": "Milestones for doczi itself, tracked with doczi.",
-  "updated": "2026-10-01",
+  "updated": "2026-10-02",
   "milestones": [
     {
       "id": "v0.1",
@@ -192,6 +192,27 @@
           "steps": [
             { "status": "todo", "title": "Provider settings, usage and budgets" },
             { "status": "todo", "title": "Translate documents, keeping technical terms" }
+          ]
+        },
+        {
+          "name": "Machine-specific settings",
+          "type": "feature",
+          "tags": [
+            "config",
+            "hooks"
+          ],
+          "docs": [
+            {
+              "title": "ADR 0003",
+              "path": "docs/adr/0003-local-settings-and-machine-paths.md"
+            }
+          ],
+          "steps": [
+            { "status": "review", "title": ".doczi.local.json: check override and notes, shown at session start" },
+            { "status": "review", "title": "Edit hook blocks this machine's project and home paths in shared files" },
+            { "status": "review", "title": "doczi check-paths: machine paths as errors, other absolute paths as warnings" },
+            { "status": "review", "title": "doczi init: ignore the local file in git and stop when the upstream already has the doczi files" },
+            { "status": "review", "title": "Rule, README, setup skill and ADR 0003" }
           ]
         }
       ]
