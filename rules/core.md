@@ -41,3 +41,13 @@
   look); `blocked` with a reason when you cannot continue. Record decisions you need from the
   user as questions on the task (`progress_ask`). Use the doczi MCP tools or
   `doczi progress …`. Never type percentages; they are computed.
+
+## Machines
+
+- Files a team shares use paths relative to the project root. Never write this machine's drive,
+  project folder or home folder into them: a colleague's checkout is somewhere else.
+- A value that belongs to one machine (a tool path, a proxy, a `safe.directory` entry, a local
+  URL) goes in `.doczi.local.json`, which is never committed. Its `notes` are shown at the start
+  of every session.
+- Before `doczi init` on a checkout that follows a branch, run `git fetch`: a teammate may
+  already have committed `.doczi.json` and the progress file.
