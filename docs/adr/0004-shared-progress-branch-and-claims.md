@@ -50,6 +50,9 @@ already there in every project that has more than one contributor.
 Option 1 now. Option 3 later, as another backend behind the same store interface, for teams that
 want it; the branch stays the default and keeps working without a server.
 
+- **The branch belongs to the project, not to doczi.** Each project that uses doczi has its own
+  progress branch on its own remote. doczi's rules and skills tell the agent working there to
+  create it (`doczi share`) when it is missing; doczi's own repository holds no project's data.
 - **Storage is chosen per project.** `.doczi.json` gains `"shared": { "remote": "origin",
 "branch": "doczi-progress" }`. Without it, a project behaves exactly as today (a file on the code
   branch), so single-person projects change nothing.

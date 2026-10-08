@@ -9,6 +9,23 @@ doczi is the only record of who is doing what in a project. Several developers, 
 several agents, see the same statuses from every branch and machine, and a step that someone
 holds cannot be started by anyone else.
 
+## Where the branch lives
+
+In the repository of the project that uses doczi, never in doczi's own repository. doczi is a
+separate product: it ships the code and the instructions; each project keeps its own data.
+
+- Every project gets its own progress branch (default `doczi-progress`) on its own remote.
+- The agent working in that project creates it. The rules and skills doczi injects tell it to: at
+  session start doczi says when a project has a remote and no progress branch yet, and the setup
+  and progress skills run `doczi share` there. It never replaces a branch that already exists.
+- After that doczi knows the branch from `.doczi.json` and reads and writes it on every change.
+
+What the branch holds is the project's management record: milestones, tasks, steps and their
+statuses, who holds what, questions and answers, and labels. Its commit log is the progress log.
+Requirements, plans and decision records (the SRS, `docs/plans`, ADRs) stay with the code,
+because they are reviewed with it; tasks link to their sections, and doczi checks that every link
+still points at a file on the project's main branch.
+
 ## Acceptance criteria (testable)
 
 1. Two checkouts of one repository, on different branches, read the same progress after
@@ -27,6 +44,12 @@ holds cannot be started by anyone else.
    given; the next sync applies an offline change or reports the conflict.
 9. `doczi check-status` lists plan documents that still carry a State column or status words in a
    step table.
+
+10. In a project with a remote and no progress branch, the session start text says so and names
+    the command; after `doczi share` the branch exists on that project's remote, holds only the
+    progress file, and a second `doczi share` changes nothing.
+11. `doczi check-docs` fails when a task links to a document or section that does not exist on
+    the project's main branch.
 
 ## What I read
 
@@ -90,10 +113,12 @@ do not collide either. Take-over needs `--take` (CLI), `take: true` (MCP, HTTP).
 - HTTP: holder in step objects, `409` with the holder for a refused change, `POST …/claim`,
   `POST …/release`.
 - Dashboard: holder chip on a step, "Mine" and "Held by others" filters, a stale mark.
-- Hook: session start lists what the person holds and what others hold in the current milestone.
+- Hook: session start lists what the person holds and what others hold in the current milestone,
+  and says when the project has a remote but no progress branch yet.
 - Rules and skills: `rules/core.md` (claim before starting; stop when held), `skills/progress`,
   `skills/implement-task` (claim in step 1), `skills/delegate-task` (the lead claims for the
-  delegate's branch), `skills/setup` (offer `doczi share`; statuses live only in doczi).
+  delegate's branch), `skills/setup` and `skills/progress` (create the project's progress branch with `doczi share`
+  when it is missing, and tell the user; statuses live only in doczi).
 
 ## Test plan
 
@@ -121,7 +146,7 @@ test/hooks.test.mjs`
 6. **[lead]** HTTP API in all three servers, `docs/API.md` and the contract suite. Verify:
    `node --test test/http-contract.test.mjs`
 7. **[lead]** Dashboard: holder chip, filters, stale mark. Verify: `node --test test/web.test.mjs`
-8. **[lead]** `check-status`, and the rules and skills that make doczi the only place for
+8. **[lead]** `check-status`, `check-docs`, and the rules and skills that make doczi the only place for
    statuses. Verify: `npm run check`
 9. **[delegable]** README, migration guide, and the update to `docs/plans/storage.md`.
 
