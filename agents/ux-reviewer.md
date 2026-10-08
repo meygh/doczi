@@ -14,8 +14,10 @@ motion; phone-width layout without horizontal scroll; light and dark themes; und
 where people edit; copy that is specific and actionable; code-splitting of heavy parts;
 stories and tests for new components.
 
-If the app is running and a browser tool is available, open the changed screens, take light
-and dark screenshots at phone and desktop width, and do a keyboard-only pass.
+If the app is running and a browser tool is available, open every affected page, not only the
+block that changed, and take light and dark screenshots at 360, 768, 1024, 1280, 1440 and
+1920 px. Measure block edges against the page's main width instead of judging by eye, and do
+a keyboard-only pass.
 
 Output: issues by severity with `file:line` and a concrete fix, then the three highest-impact
 UX improvements that are in scope.
