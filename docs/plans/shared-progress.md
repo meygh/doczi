@@ -1,6 +1,6 @@
 # Plan: one shared copy of progress, with claims
 
-Status: draft, waiting for the owner's approval · Milestone: v0.3 ·
+Status: approved by the owner (2026-10-08) · Milestone: v0.3 ·
 ADR: [0004](../adr/0004-shared-progress-branch-and-claims.md) · Owner: Meisam Ghanbari
 
 ## Goal
@@ -26,6 +26,25 @@ Requirements, plans and decision records (the SRS, `docs/plans`, ADRs) stay with
 because they are reviewed with it; tasks link to their sections, and doczi checks that every link
 still points at a file on the project's main branch.
 
+## A second copy, on a branch named after the project
+
+Asked for by the owner on 2026-10-08: the record exists on both sides.
+
+- `.doczi.json` may name a mirror: `"mirror": { "url": "<another repository>", "branch":
+  "<project name>" }` inside `shared`. The branch name defaults to the project's name. The owner's
+  projects mirror into the doczi repository; any other team points it at a repository of its own.
+- The mirror branch holds the progress file and a copy of the project's management documents:
+  the files tasks link to, plus the paths listed in `shared.docs` (default: the Markdown files
+  under `docs/`, without pictures or other binary files).
+- The project's own progress branch stays the one that decides. After every successful change
+  doczi pushes the same state to the mirror; `doczi sync` refreshes the documents from the
+  project's main branch. A failed mirror push never blocks work: it is reported, and the next
+  sync catches up.
+- Nobody edits the mirror by hand. doczi overwrites it from the project, and says so when it
+  finds a commit there that it did not make.
+- A mirror branch is an orphan branch. It shares no history with the code of the repository that
+  hosts it, and it is never merged into it.
+
 ## Acceptance criteria (testable)
 
 1. Two checkouts of one repository, on different branches, read the same progress after
@@ -50,6 +69,13 @@ still points at a file on the project's main branch.
     progress file, and a second `doczi share` changes nothing.
 11. `doczi check-docs` fails when a task links to a document or section that does not exist on
     the project's main branch.
+
+12. With a mirror set, a status change appears on the mirror branch after the change, and the
+    mirror's progress file equals the project's.
+13. `doczi sync` copies the linked documents to the mirror; a document deleted in the project
+    disappears from the mirror on the next sync.
+14. With the mirror unreachable, the change still succeeds on the project's branch, the output
+    says the mirror is behind, and the next sync brings it level.
 
 ## What I read
 
@@ -148,9 +174,11 @@ test/hooks.test.mjs`
 7. **[lead]** Dashboard: holder chip, filters, stale mark. Verify: `node --test test/web.test.mjs`
 8. **[lead]** `check-status`, `check-docs`, and the rules and skills that make doczi the only place for
    statuses. Verify: `npm run check`
-9. **[delegable]** README, migration guide, and the update to `docs/plans/storage.md`.
+9. **[lead]** Mirror: push the progress and the document copy to the second repository, drift
+   report, never blocking. Verify: `node --test test/store-mirror.test.mjs`
+10. **[delegable]** README, migration guide, and the update to `docs/plans/storage.md`.
 
-Estimate: eight to ten working days for the lead.
+Estimate: ten to twelve working days for the lead.
 
 ## Progress steps
 
@@ -167,6 +195,12 @@ doczi server". They are in `docs/progress/milestones.json` with this change.
   only reads uses the fetch without credentials.
 - **Wrong identity.** The holder's name comes from the git identity; two people sharing one
   identity look like one holder. `actor` in the local file fixes it.
+- **Private documents in a second repository.** The mirror puts a project's requirements and
+  plans where everyone with access to the hosting repository can read them. Keep that repository
+  private, or leave `shared.docs` empty to mirror progress only. If the hosting repository is
+  ever made public, its mirror branches go public with it.
+- **Repository size.** Document copies add history to the hosting repository. Binary files are
+  left out by default for that reason.
 - **Abandoned claims.** Only the stale mark and an explicit take-over; nothing is released
   automatically.
 - **PHP and Python.** Calling git from them adds process handling in two more languages. If step 6

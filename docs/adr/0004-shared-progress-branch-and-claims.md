@@ -1,6 +1,6 @@
 # 0004. One shared copy of progress on its own git branch, with claims
 
-- Status: Proposed
+- Status: Accepted (2026-10-08)
 - Date: 2026-10-08
 - Requirements: none (asked for by the owner: several developers, each with several agents,
   work on the same projects and sometimes the same tasks)
@@ -53,6 +53,10 @@ want it; the branch stays the default and keeps working without a server.
 - **The branch belongs to the project, not to doczi.** Each project that uses doczi has its own
   progress branch on its own remote. doczi's rules and skills tell the agent working there to
   create it (`doczi share`) when it is missing; doczi's own repository holds no project's data.
+- **An optional second copy.** A project may name a mirror: another repository and a branch
+  named after the project. doczi pushes the progress there after each change and copies the
+  project's management documents on sync. The project's own branch decides; the mirror is
+  written only by doczi and never blocks work.
 - **Storage is chosen per project.** `.doczi.json` gains `"shared": { "remote": "origin",
 "branch": "doczi-progress" }`. Without it, a project behaves exactly as today (a file on the code
   branch), so single-person projects change nothing.
@@ -92,7 +96,8 @@ want it; the branch stays the default and keeps working without a server.
   - progress is reviewed on its own branch, not beside the code;
   - the PHP and Python servers must speak to git too, or be read-only in shared mode, which the
     plan decides per step;
-  - a contributor without push rights cannot claim.
+  - a contributor without push rights cannot claim;
+  - a mirror shows a project's documents to everyone who can read the repository that hosts it.
 - **Follow-ups:**
   - the hosted server backend (roadmap; its own ADR when it starts);
   - `docs/plans/storage.md` step 2 (store interface) and step 3 (history) are delivered here for

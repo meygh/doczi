@@ -273,7 +273,8 @@
             { "status": "todo", "title": "CLI: share, sync, claim, release, progress mine" },
             { "status": "todo", "title": "check-status reports plan documents that repeat statuses" },
             { "status": "todo", "title": "Rules and skills: claim before starting; statuses live only in doczi" },
-            { "status": "todo", "title": "README, migration guide and the storage plan update" }
+            { "status": "todo", "title": "README, migration guide and the storage plan update" },
+            { "status": "todo", "title": "Mirror: a second copy of progress and the project's documents on a branch named after the project in another repository" }
           ]
         }
       ]
