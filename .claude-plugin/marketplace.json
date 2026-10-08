@@ -16,8 +16,8 @@
     {
       "name": "ui-ux-pro-max",
       "source": {
-        "source": "github",
-        "repo": "nextlevelbuilder/ui-ux-pro-max-skill",
+        "source": "url",
+        "url": "https://github.com/nextlevelbuilder/ui-ux-pro-max-skill.git",
         "ref": "v2.15.0",
         "sha": "a38d04c3d5c298c851dbe5e6ee1965ee3de42cb5"
       },

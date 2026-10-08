@@ -278,6 +278,7 @@ Start new sessions afterwards; the rules are read when a session starts.
 | What you see | What to do |
 | --- | --- |
 | "SSH authentication failed" when adding or updating the marketplace | The agent cloned over SSH and the machine has no key for GitHub. Remove the marketplace and add it by its HTTPS address, `https://github.com/meygh/doczi.git`, after step 1; or add an SSH key. |
+| "Host key verification failed" or "No ED25519 host key is known for github.com" | Git is cloning over SSH on a machine that has never connected to GitHub that way. Update the marketplace first; its plugins are fetched over HTTPS. If it still happens, make git use HTTPS for GitHub: `git config --global url."https://github.com/".insteadOf "git@github.com:"`. |
 | The clone hangs, or asks which account to use | Two GitHub accounts are signed in. Run `gh auth switch --user <account>`, then `gh auth setup-git`. |
 | The marketplace update fails after the history of `main` changed | Remove the marketplace and add it again, then install the plugin: `claude plugin marketplace remove doczi` or `codex plugin marketplace remove doczi`. |
 | No network, or you work on doczi itself | Add the marketplace from a local clone: `claude plugin marketplace add /path/to/doczi` or `codex plugin marketplace add /path/to/doczi`. The plugin then follows that folder and its current branch. |
