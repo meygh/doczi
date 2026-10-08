@@ -22,7 +22,10 @@ Delegate: $ARGUMENTS
    - constraints: follow `AGENTS.md`; no new dependencies; no test edits except added cases;
      no secrets; no AI tool names anywhere;
    - out of scope;
-   - report: write `.handoff/<id>.result.md` (what changed, commands run, open questions).
+   - report: write `.handoff/<id>.result.md` (what changed, commands run, open questions)
+     and, in it, the self-review: before reporting, review your own diff with the code review
+     tool your environment provides; say which kind of tool it was, which findings you fixed,
+     and which you left and why.
 4. Tell the user the worktree path and the one line to give the secondary agent:
    "Read .handoff/<id>.md in this repo and complete it."
 5. Do not change the same files until `/doczi:review-delegated <id>` is done.

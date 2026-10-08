@@ -37,7 +37,9 @@ the doczi marketplace is the reference.
 - A label for every input; errors linked with `aria-describedby`; required marked in text.
 
 ## Responsive
-- Mobile first; test at 360, 768, 1024 and 1440 px. No horizontal page scroll.
+- Mobile first; test at 360, 768, 1024, 1280, 1440 and 1920 px, in light and dark, on every
+  affected page and not only the block that changed. No horizontal page scroll.
+- Measure block edges against the page's main width instead of judging by eye.
 - Tables become cards on phones; dialogs become full-screen sheets; no hover-only actions.
 
 ## Copy
@@ -51,5 +53,6 @@ the doczi marketplace is the reference.
 ## Before done
 - Stories or examples for new components in every state; component tests by role and label;
   an end-to-end test for new flows.
-- Run the `ux-reviewer` agent. If a browser tool is available, open the changed screens,
-  check light and dark at phone and desktop width, and do a keyboard-only pass.
+- Run the `ux-reviewer` agent, or the environment's own code review tool when there are no
+  reviewer agents. If a browser tool is available, open the changed screens, check light and
+  dark at the widths above, and do a keyboard-only pass.

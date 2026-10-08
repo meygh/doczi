@@ -59,6 +59,8 @@ flowchart LR
 - Clean code; accessible, responsive UI by default.
 - No AI footprint in code, commits or pull requests.
 - A lead / secondary-agent model: delegate only bounded work, contract first, always reviewed.
+- Two-stage review: the author reviews its own diff first; the lead does the final review,
+  with browser end-to-end tests and a look at the running feature for anything with UI.
 
 **Workflow skills**
 
