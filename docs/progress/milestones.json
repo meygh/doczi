@@ -221,34 +221,8 @@
       "id": "v0.3",
       "name": "Shared progress for teams",
       "when": "after the plan is approved",
-      "exit": "Two people on two machines cannot both start the same step, and every branch shows the same statuses.",
+      "exit": "Every branch and machine of a project shows the same progress, stored in the project's documents and on its shared branch.",
       "tasks": [
-        {
-          "name": "Claims",
-          "type": "feature",
-          "tags": [
-            "progress",
-            "teams"
-          ],
-          "docs": [
-            {
-              "title": "Plan",
-              "path": "docs/plans/shared-progress.md"
-            },
-            {
-              "title": "ADR 0004",
-              "path": "docs/adr/0004-shared-progress-branch-and-claims.md"
-            }
-          ],
-          "steps": [
-            { "status": "todo", "title": "Store interface; the file backend moves behind it unchanged" },
-            { "status": "todo", "title": "A step records who holds it; doing claims, done and todo release, a held step is refused" },
-            { "status": "todo", "title": "Stale claims are marked and taken over only on purpose" },
-            { "status": "todo", "title": "MCP tools and the session start text show holders" },
-            { "status": "todo", "title": "HTTP API in all three servers: holder fields, 409 for a held step, claim and release" },
-            { "status": "todo", "title": "Dashboard: holder chip, Mine and Held by others filters, stale mark" }
-          ]
-        },
         {
           "name": "Shared progress branch",
           "type": "feature",
@@ -268,13 +242,12 @@
             }
           ],
           "steps": [
-            { "status": "todo", "title": "Hub backend: a branch per project (projects/<name>) in one repository; compare-and-swap write, bounded retry" },
-            { "status": "todo", "title": "The project's own progress file follows the hub; offline changes queue and report conflicts" },
-            { "status": "todo", "title": "CLI: share, sync, claim, release, progress mine" },
+            { "status": "todo", "title": "Three-way merge of two progress states, step by step" },
+            { "status": "todo", "title": "Shared branch in the project's own repository: fetch, commit with plumbing, push without force, retry" },
+            { "status": "todo", "title": "CLI: share, sync, progress log; CLI and MCP writes sync afterwards" },
+            { "status": "todo", "title": "Session start syncs and says when a project has no shared branch yet" },
             { "status": "todo", "title": "share removes statuses repeated in plan documents and keeps their notes; check-status reports any left" },
-            { "status": "todo", "title": "Rules and skills: claim before starting; statuses live only in doczi" },
-            { "status": "todo", "title": "README, migration guide and the storage plan update" },
-            { "status": "todo", "title": "sync copies the project's Markdown documents to its hub branch; check-docs verifies task links" }
+            { "status": "todo", "title": "Rules, skills, README and the storage plan note" }
           ]
         }
       ]
@@ -283,7 +256,7 @@
       "id": "v0.4",
       "name": "Hosted doczi server",
       "when": "later; needs its own ADR",
-      "exit": "A team can point its projects at one doczi service and work without the progress branch.",
+      "exit": "A team can point its projects at one doczi service, and a step that someone holds cannot be started by anyone else.",
       "tasks": [
         {
           "name": "Hosted doczi server",
@@ -304,6 +277,28 @@
             { "status": "todo", "title": "Service with accounts, projects and tokens; instant claims" },
             { "status": "todo", "title": "Live dashboard for many projects" },
             { "status": "todo", "title": "Move a project between the branch and the server with export and import" }
+          ]
+        },
+        {
+          "name": "Claims",
+          "type": "feature",
+          "tags": [
+            "progress",
+            "teams"
+          ],
+          "docs": [
+            {
+              "title": "Plan (last section)",
+              "path": "docs/plans/shared-progress.md#later-a-hosted-doczi-server-v04"
+            }
+          ],
+          "steps": [
+            { "status": "todo", "title": "Store interface; the file backend moves behind it unchanged" },
+            { "status": "todo", "title": "A step records who holds it; doing claims, done and todo release, a held step is refused" },
+            { "status": "todo", "title": "Stale claims are marked and taken over only on purpose" },
+            { "status": "todo", "title": "MCP tools and the session start text show holders" },
+            { "status": "todo", "title": "HTTP API in all three servers: holder fields, 409 for a held step, claim and release" },
+            { "status": "todo", "title": "Dashboard: holder chip, Mine and Held by others filters, stale mark" }
           ]
         }
       ]
