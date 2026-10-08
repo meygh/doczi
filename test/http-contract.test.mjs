@@ -119,7 +119,7 @@ for (const rt of RUNTIMES) {
 
     test("health names the runtime", async () => {
       const r = await request(port, "GET", "/api/health");
-      assert.deepEqual(r.json, { ok: true, runtime: rt.name, version: "0.1.0" });
+      assert.deepEqual(r.json, { ok: true, runtime: rt.name, version: "0.1.1" });
       assert.equal(r.headers["cache-control"], "no-store");
       assert.equal(r.headers["x-content-type-options"], "nosniff");
     });

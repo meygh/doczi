@@ -134,7 +134,7 @@ suite (`test/http-contract.test.mjs`) against each runtime that is installed.
 
 ### Endpoints
 
-`GET /api/health` → `200 { "ok": true, "runtime": "node" | "php" | "python", "version": "0.1.0" }`
+`GET /api/health` → `200 { "ok": true, "runtime": "node" | "php" | "python", "version": "0.1.1" }`
 
 `GET /api/projects` → `200 { "projects": [ { "id": "flowforge", "name": "FlowForge", "hasProgress": true } ] }`
 
