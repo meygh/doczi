@@ -113,9 +113,12 @@ intelligence, and
 
 ## Quick start
 
-### 1. Access
+### 1. What you need
 
-This repository is private. Give git access once, so the agents can clone it:
+- Node.js 20 or newer and git, on every machine that uses doczi.
+- Access to this repository. It is private, so git must be able to clone it without asking.
+
+Over HTTPS, sign in once and let git use that sign-in:
 
 ```bash
 gh auth login
@@ -124,20 +127,51 @@ gh auth login
 gh auth setup-git
 ```
 
-### 2. Install the plugin
+With more than one GitHub account on the machine, make the one that can read this repository
+active first: `gh auth switch --user <account>`. Over SSH, add your key to GitHub instead and
+check it with `ssh -T git@github.com`.
 
-**Claude Code**
+### 2. Install the command line
 
-```text
-/plugin marketplace add meygh/doczi
-/plugin install doczi@doczi
+The CLI, the dashboard, the git hook and the MCP server that Codex uses all come from this one
+install:
+
+```bash
+npm install -g github:meygh/doczi
 ```
 
-Optional: `/plugin install ui-ux-pro-max@doczi` and `/plugin install engineering@doczi`.
-The MCP server is included. From a local clone you can also run
-`/plugin marketplace add /path/to/doczi`.
+Check it:
 
-**Codex**
+```bash
+doczi help
+```
+
+### 3. Install the plugin in Claude Code
+
+In a terminal:
+
+```bash
+claude plugin marketplace add meygh/doczi
+```
+```bash
+claude plugin install doczi@doczi
+```
+
+Or inside a session: `/plugin marketplace add meygh/doczi`, then `/plugin install doczi@doczi`.
+
+Optional, from the same marketplace:
+
+```bash
+claude plugin install ui-ux-pro-max@doczi
+```
+```bash
+claude plugin install engineering@doczi
+```
+
+The MCP server is included; nothing else to register. Start a new session: the working rules
+and the project's progress appear at the top of it.
+
+### 4. Install the plugin in Codex
 
 ```bash
 codex plugin marketplace add meygh/doczi
@@ -145,31 +179,113 @@ codex plugin marketplace add meygh/doczi
 ```bash
 codex plugin add doczi@doczi
 ```
-```bash
-codex mcp add doczi -- node /path/to/doczi/mcp/server.mjs
-```
 
-Codex asks you to trust the plugin's hooks once. The MCP server is added by path because Codex
-does not expand plugin paths in MCP settings.
+Optional: `codex plugin add ui-ux-pro-max@doczi` and `codex plugin add engineering@doczi`.
 
-### 3. Install the command line (dashboard, CLI, git hook)
+Codex does not expand plugin paths in MCP settings, so add the MCP server by the path of the
+global install from step 2. This prints the folder that holds it:
 
 ```bash
-npm install -g github:meygh/doczi
+npm root -g
 ```
 
-### 4. Connect a project
+Then, with that folder in place of `<npm root>`:
+
+```bash
+codex mcp add doczi -- node <npm root>/doczi/mcp/server.mjs
+```
+
+Codex asks once to trust the plugin's hooks; say yes, they inject the rules and guard edits and
+commits. Check with `codex plugin list` and `codex mcp list`, then start a new session.
+
+Codex has no reviewer sub-agents. The skills that call for them fall back to Codex's own code
+review tool, and the lead still does the final review (see `rules/delegation.md`).
+
+### 5. Connect a project
+
+Once per project, by one person:
 
 ```bash
 cd your-project
 doczi init --check "make check"
 ```
 
-`init` creates `.doczi.json` and a starter progress file, and registers the project with
-the dashboard. It never overwrites existing files. Inside an agent session,
-`/doczi:setup` does the same interactively and drafts milestones from your roadmap.
+`init` creates `.doczi.json` and a starter progress file, adds `.doczi.local.json` to
+`.gitignore`, and registers the project with the dashboard. It never overwrites existing files.
+Inside an agent session, `/doczi:setup` does the same interactively and drafts milestones from
+your roadmap.
 
-### 5. Daily use
+Then:
+
+1. Add the commit-msg hook, which strips assistant attribution from commit messages:
+
+   ```bash
+   doczi git-hooks
+   ```
+
+2. Commit `.doczi.json` and the progress file, and push them, so the team shares one setup.
+3. Put anything that belongs to one machine (tool paths, a proxy, how the dev server starts
+   here) in `.doczi.local.json` as `notes`. It is never committed, and each session shows it.
+
+**Everyone else on the team** does steps 1 to 4 on their machine, then in the project:
+
+```bash
+git pull
+```
+```bash
+doczi projects add .
+```
+
+They do not run `doczi init` again: the project already has its files.
+
+**The project's own rules win.** doczi adds to a project's `AGENTS.md`, `CLAUDE.md`, skills and
+hooks and never replaces them. Rules that only one agent reads are missed by the other, so keep
+what both must follow in `AGENTS.md`, which both read.
+
+### 6. Update
+
+After a new release, on each machine:
+
+```bash
+npm install -g github:meygh/doczi
+```
+
+Claude Code:
+
+```bash
+claude plugin marketplace update doczi
+```
+```bash
+claude plugin update doczi@doczi
+```
+
+Codex:
+
+```bash
+codex plugin marketplace upgrade doczi
+```
+```bash
+codex plugin remove doczi@doczi
+```
+```bash
+codex plugin add doczi@doczi
+```
+
+Start new sessions afterwards; the rules are read when a session starts.
+
+### 7. When something goes wrong
+
+| What you see | What to do |
+| --- | --- |
+| "SSH authentication failed" when adding or updating the marketplace | The agent cloned over SSH and the machine has no key for GitHub. Remove the marketplace and add it by its HTTPS address, `https://github.com/meygh/doczi.git`, after step 1; or add an SSH key. |
+| The clone hangs, or asks which account to use | Two GitHub accounts are signed in. Run `gh auth switch --user <account>`, then `gh auth setup-git`. |
+| The marketplace update fails after the history of `main` changed | Remove the marketplace and add it again, then install the plugin: `claude plugin marketplace remove doczi` or `codex plugin marketplace remove doczi`. |
+| No network, or you work on doczi itself | Add the marketplace from a local clone: `claude plugin marketplace add /path/to/doczi` or `codex plugin marketplace add /path/to/doczi`. The plugin then follows that folder and its current branch. |
+| A session starts without the rules | The plugin is not enabled, or the session is older than the install. Check `claude plugin list` or `codex plugin list`, then start a new session. |
+| Codex has no progress tools | The MCP server is missing or points at an old path. `codex mcp list`, then `codex mcp remove doczi` and add it again as in step 4. |
+| An edit or a commit is refused for naming an AI tool | That is the guard working. Rewrite the text without the name; files that configure the tools are exempt (see `aiFootprint.allow`). |
+
+### 8. Daily use
 
 ```bash
 doczi progress
