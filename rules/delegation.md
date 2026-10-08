@@ -14,3 +14,11 @@ bounded tasks, but only when the user approves each batch.
 - **Contract first:** before handing off, write the interfaces, types and failing tests
   yourself; the delegate only makes them pass (`/doczi:delegate-task`). Review everything it
   returns (`/doczi:review-delegated`). Nothing merges without your review.
+- **Two-stage review.** First, whoever writes a change, lead or secondary agent, reviews its
+  own diff with the code review tool its own environment provides before reporting, fixes the
+  findings and lists what it left and why. Then you, the lead, do the final review of every
+  feature before it is called done or merged: every changed line against the plan and the
+  project rules, plus the project check. For anything with a user interface, also run the
+  browser end-to-end tests and look at the running feature in a real browser: appearance
+  against the approved design, behaviour, keyboard use, loading, empty and error states, light
+  and dark. Automated review never replaces your review.

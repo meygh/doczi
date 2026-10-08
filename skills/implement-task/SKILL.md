@@ -23,9 +23,13 @@ For each step:
    the task (`progress_ask`).
 
 After the last step:
-- Run the reviewer agents that apply: `security-reviewer` (auth, input parsing, secrets,
-  user code, network calls), `perf-reviewer` (hot paths, storage access), `ux-reviewer` (any
-  UI), `test-writer` for gaps.
+- Where reviewer agents exist, run the ones that apply: `security-reviewer` (auth, input
+  parsing, secrets, user code, network calls), `perf-reviewer` (hot paths, storage access),
+  `ux-reviewer` (any UI), `test-writer` for gaps. Where the environment has none, run its
+  own code review tool on the diff and cover the same concerns (security, performance, UX,
+  test gaps) yourself.
 - Fix findings or list them as follow-ups in the plan.
+- A feature with UI is not reported as done before its end-to-end test passes and it has been
+  checked in a browser.
 - Report: what changed, test evidence (commands and results), benchmarks if relevant, what
   you did not verify, open risks. Never push.

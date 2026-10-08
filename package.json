@@ -1,6 +1,6 @@
 {
   "name": "doczi",
-  "version": "0.1.0",
+  "version": "0.1.1",
   "description": "Working rules, skills and project progress tracking for coding agents, shared by every project through one plugin and one API.",
   "license": "MIT",
   "author": "Meisam Ghanbari",
