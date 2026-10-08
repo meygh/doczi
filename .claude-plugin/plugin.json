@@ -1,6 +1,6 @@
 {
   "name": "doczi",
-  "version": "0.1.0",
+  "version": "0.1.1",
   "description": "Working rules, workflow skills, reviewer agents and project progress tracking for every project, without overriding a project's own setup.",
   "author": {
     "name": "Meisam Ghanbari",
