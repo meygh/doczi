@@ -1,7 +1,7 @@
 {
   "title": "doczi: where we are",
   "subtitle": "Milestones for doczi itself, tracked with doczi.",
-  "updated": "2026-10-02",
+  "updated": "2026-10-08",
   "milestones": [
     {
       "id": "v0.1",
@@ -213,6 +213,96 @@
             { "status": "review", "title": "doczi check-paths: machine paths as errors, other absolute paths as warnings" },
             { "status": "review", "title": "doczi init: ignore the local file in git and stop when the upstream already has the doczi files" },
             { "status": "review", "title": "Rule, README, setup skill and ADR 0003" }
+          ]
+        }
+      ]
+    },
+    {
+      "id": "v0.3",
+      "name": "Shared progress for teams",
+      "when": "after the plan is approved",
+      "exit": "Two people on two machines cannot both start the same step, and every branch shows the same statuses.",
+      "tasks": [
+        {
+          "name": "Claims",
+          "type": "feature",
+          "tags": [
+            "progress",
+            "teams"
+          ],
+          "docs": [
+            {
+              "title": "Plan",
+              "path": "docs/plans/shared-progress.md"
+            },
+            {
+              "title": "ADR 0004",
+              "path": "docs/adr/0004-shared-progress-branch-and-claims.md"
+            }
+          ],
+          "steps": [
+            { "status": "todo", "title": "Store interface; the file backend moves behind it unchanged" },
+            { "status": "todo", "title": "A step records who holds it; doing claims, done and todo release, a held step is refused" },
+            { "status": "todo", "title": "Stale claims are marked and taken over only on purpose" },
+            { "status": "todo", "title": "MCP tools and the session start text show holders" },
+            { "status": "todo", "title": "HTTP API in all three servers: holder fields, 409 for a held step, claim and release" },
+            { "status": "todo", "title": "Dashboard: holder chip, Mine and Held by others filters, stale mark" }
+          ]
+        },
+        {
+          "name": "Shared progress branch",
+          "type": "feature",
+          "tags": [
+            "storage",
+            "git",
+            "teams"
+          ],
+          "docs": [
+            {
+              "title": "Plan",
+              "path": "docs/plans/shared-progress.md"
+            },
+            {
+              "title": "ADR 0004",
+              "path": "docs/adr/0004-shared-progress-branch-and-claims.md"
+            }
+          ],
+          "steps": [
+            { "status": "todo", "title": "Branch backend: read and compare-and-swap write with git plumbing, bounded retry" },
+            { "status": "todo", "title": "Working-tree file as a git-ignored cache; offline changes queue and report conflicts" },
+            { "status": "todo", "title": "CLI: share, sync, claim, release, progress mine" },
+            { "status": "todo", "title": "check-status reports plan documents that repeat statuses" },
+            { "status": "todo", "title": "Rules and skills: claim before starting; statuses live only in doczi" },
+            { "status": "todo", "title": "README, migration guide and the storage plan update" }
+          ]
+        }
+      ]
+    },
+    {
+      "id": "v0.4",
+      "name": "Hosted doczi server",
+      "when": "later; needs its own ADR",
+      "exit": "A team can point its projects at one doczi service and work without the progress branch.",
+      "tasks": [
+        {
+          "name": "Hosted doczi server",
+          "type": "feature",
+          "tags": [
+            "server",
+            "teams"
+          ],
+          "docs": [
+            {
+              "title": "Plan (last section)",
+              "path": "docs/plans/shared-progress.md#later-a-hosted-doczi-server"
+            }
+          ],
+          "steps": [
+            { "status": "todo", "title": "ADR: hosting, sign-in and access per person, backup" },
+            { "status": "todo", "title": "Server backend behind the store interface" },
+            { "status": "todo", "title": "Service with accounts, projects and tokens; instant claims" },
+            { "status": "todo", "title": "Live dashboard for many projects" },
+            { "status": "todo", "title": "Move a project between the branch and the server with export and import" }
           ]
         }
       ]

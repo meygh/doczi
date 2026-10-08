@@ -315,6 +315,12 @@ Until a project is migrated, each agent session starts with a one-line reminder.
 - **Storage for large and busy projects.** Optional SQLite storage with change history,
   per-milestone JSON files, and export / import. The lock that makes today's JSON storage safe
   with concurrent writers has shipped. Plan: [docs/plans/storage.md](docs/plans/storage.md).
+- **Shared progress for teams (v0.3).** One copy of progress on its own git branch, the same
+  from every branch and machine, and claims so two people or agents cannot start the same step.
+  Plan: [docs/plans/shared-progress.md](docs/plans/shared-progress.md),
+  [ADR 0004](docs/adr/0004-shared-progress-branch-and-claims.md).
+- **A hosted doczi server (later).** The same store behind a service, for instant claims and a
+  live dashboard across projects; the branch stays the default.
 - Registering the MCP server automatically on Codex install.
 - Editing step titles and notes from the dashboard.
 - v0.3: stop reading the legacy solo-keel names ([ADR 0001](docs/adr/0001-rename-to-doczi.md)).
