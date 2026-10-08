@@ -268,13 +268,13 @@
             }
           ],
           "steps": [
-            { "status": "todo", "title": "Branch backend: read and compare-and-swap write with git plumbing, bounded retry" },
-            { "status": "todo", "title": "Working-tree file as a git-ignored cache; offline changes queue and report conflicts" },
+            { "status": "todo", "title": "Hub backend: a branch per project (projects/<name>) in one repository; compare-and-swap write, bounded retry" },
+            { "status": "todo", "title": "The project's own progress file follows the hub; offline changes queue and report conflicts" },
             { "status": "todo", "title": "CLI: share, sync, claim, release, progress mine" },
-            { "status": "todo", "title": "check-status reports plan documents that repeat statuses" },
+            { "status": "todo", "title": "share removes statuses repeated in plan documents and keeps their notes; check-status reports any left" },
             { "status": "todo", "title": "Rules and skills: claim before starting; statuses live only in doczi" },
             { "status": "todo", "title": "README, migration guide and the storage plan update" },
-            { "status": "todo", "title": "Mirror: a second copy of progress and the project's documents on a branch named after the project in another repository" }
+            { "status": "todo", "title": "sync copies the project's Markdown documents to its hub branch; check-docs verifies task links" }
           ]
         }
       ]
