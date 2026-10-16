@@ -22,7 +22,8 @@
   (`/doczi:adr`). New dependency, new store or new public contract: ADR too.
 - Ask only when a decision is genuinely the user's: product direction, irreversible actions,
   anything that publishes or deletes. Otherwise pick the sensible default and say which.
-- Never `git push`, force-push, rewrite history or delete branches; the human does that.
+- Never `git push`, force-push, rewrite history or delete branches; the human does that. The
+  one exception is a claim and its updates (below), which you push yourself.
   Commit only when asked, one logical change per commit, Conventional Commits.
 - Notice something out of scope (dead code, a real bug, stale docs)? Mention it or offer a
   separate task. Do not fix it inside the current change.
@@ -32,6 +33,26 @@
 - Lead with the result, then the evidence. Short, plain sentences; no filler, no hype.
 - Numbers and names over adjectives: "p99 42 ms, was 55 ms", not "much faster".
 - When blocked, say what you tried, what you saw, and the one question that unblocks you.
+
+## Claims
+
+So two people or agents never build the same task, a task is claimed before any other work.
+
+- **Where.** On the project's coordination branch: `.doczi.json` → `coordination.branch`
+  (default `coordination`) on `coordination.remote` (default `origin`). It holds only claims and
+  shares no files with the code. If the project has no such branch, claim the way its own rules
+  say (often a status-only commit to the main branch); if they say nothing, ask once. Create the
+  branch only when the user asks.
+- **How.** One file per task, `claims/<plan>/<task>.md`, where `<plan>` is the plan's file name
+  and `<task>` its step ID. Read the task's state in its plan, fetch the branch, and if no file
+  exists, add it and push without force, in a separate worktree so your checkout is untouched.
+  A refused push means someone pushed first: fetch, look again. A file that exists means the
+  task is taken: stop and pick another. Never force a push there.
+- **What it says.** The plan, who took it (a role and a person, never a tool or model name),
+  since when, `State: taken`, `review` or `done`, and the branch and pull request once they
+  exist. Keep it current; delete it to give the task up.
+- **Who can read it.** Every branch of a public repository is public. There, write nothing but
+  the task, the role and the branch, or point `coordination.remote` at a private repository.
 
 ## Progress
 

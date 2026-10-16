@@ -9,6 +9,11 @@ Implement $ARGUMENTS
 Before the first step, find the project's check command: `.doczi.json` → `check`, otherwise
 the README, Makefile, package.json or equivalent. Use it wherever this skill says "check".
 
+Before the first step, claim the task as the Claims rule says: check its state in the plan
+and the claim file on the project's coordination branch, and push the claim without force. If
+it is taken, or your push is refused and the claim then appears, stop and tell the user. When
+the work waits for review or is merged, update the claim's state the same way.
+
 For each step:
 1. Set its progress step to `doing` (doczi MCP `progress_set_status` or
    `doczi progress set <milestone> <task> <step> doing`).
@@ -32,4 +37,4 @@ After the last step:
 - A feature with UI is not reported as done before its end-to-end test passes and it has been
   checked in a browser.
 - Report: what changed, test evidence (commands and results), benchmarks if relevant, what
-  you did not verify, open risks. Never push.
+  you did not verify, open risks. Push nothing but the claim and its updates.

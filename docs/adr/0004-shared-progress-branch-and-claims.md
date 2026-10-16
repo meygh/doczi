@@ -1,6 +1,7 @@
 # 0004. A shared progress branch in each project; claims wait for the server
 
-- Status: Accepted (2026-10-08); amended the same day, see "History of this decision"
+- Status: Accepted (2026-10-08); amended the same day, see "History of this decision"; claims
+  amended by [0005](0005-claims-on-a-coordination-branch.md) (2026-10-16)
 - Date: 2026-10-08
 - Requirements: none (asked for by the owner: several developers, each with several agents,
   work on the same projects and sometimes the same tasks)
@@ -95,3 +96,6 @@ All on 2026-10-08, by the owner:
    copy.
 3. Amended to this form: the shared branch in each project only, changes stored in the project's
    documents and on that branch, and claims left for the hosted server.
+4. On 2026-10-16 the owner asked for claims before the server: one file per task on a
+   coordination branch, pushed without force ([0005](0005-claims-on-a-coordination-branch.md)).
+   The shared progress file is meant for that same branch.
