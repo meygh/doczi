@@ -189,4 +189,9 @@
   "translate.keyMissing": "No key yet",
   "translate.free": "Free, no key",
   "translate.noAnswer": "no translation came back",
+  "translate.committed": "Kept {files} in the project and committed it ({commit}).",
+  "translate.notCommitted": "Kept {files} in the project, but git didn't commit it: {message}",
+  "translate.saved": "Kept {files} in the project.",
+  "translate.saveFailed": "Couldn't keep the translation in the project: {message}",
+  "doc.translating": "Translating into {language}…",
 };

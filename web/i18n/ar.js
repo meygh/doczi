@@ -188,4 +188,9 @@
   "translate.keyMissing": "لا يوجد مفتاح بعد",
   "translate.free": "مجانية، بلا مفتاح",
   "translate.noAnswer": "لم تصل أي ترجمة",
+  "translate.committed": "حُفظ {files} في المشروع وأُنشئ له commit ({commit}).",
+  "translate.notCommitted": "حُفظ {files} في المشروع، لكن git لم يُنشئ له commit: {message}",
+  "translate.saved": "حُفظ {files} في المشروع.",
+  "translate.saveFailed": "تعذّر حفظ الترجمة في المشروع: {message}",
+  "doc.translating": "جارٍ الترجمة إلى {language}…",
 };

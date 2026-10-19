@@ -280,20 +280,66 @@
     for (const l of lists) for (const d of docEntries(l)) linked.add(d.path.split("#")[0].replace(/^\.\//, ""));
   }
 
-  async function fetchDoc(path) {
-    if (docCache.has(path)) return docCache.get(path);
-    let body;
-    if (mode === "api") body = (await api(`api/projects/${encodeURIComponent(projectId)}/docs?path=${encodeURIComponent(path)}`)).text;
-    else {
-      const res = await fetch((typeof data.root === "string" ? data.root : "../../") + path, { cache: "no-store" });
-      if (!res.ok) throw Object.assign(new Error(`${res.status} ${res.statusText}`), { status: res.status });
-      body = await res.text();
+  // The document in `lang` when the project keeps that translation (doc.lang says so), else as
+  // written.
+  async function fetchDoc(path, lang = "") {
+    const key = `${path}|${lang}`;
+    if (docCache.has(key)) return docCache.get(key);
+    let doc;
+    if (mode === "api") {
+      const got = await api(`api/projects/${encodeURIComponent(projectId)}/docs?path=${encodeURIComponent(path)}${lang ? `&lang=${lang}` : ""}`);
+      doc = { text: got.text, lang: got.lang || "" };
+    } else {
+      const root = typeof data.root === "string" ? data.root : "../../";
+      const res = lang ? await fetch(root + content.translatedPath(path, lang), { cache: "no-store" }).catch(() => null) : null;
+      if (res?.ok) doc = { text: await res.text(), lang };
+      else {
+        const plain = await fetch(root + path, { cache: "no-store" });
+        if (!plain.ok) throw Object.assign(new Error(`${plain.status} ${plain.statusText}`), { status: plain.status });
+        doc = { text: await plain.text(), lang: "" };
+      }
     }
-    docCache.set(path, body);
-    return body;
+    docCache.set(key, doc);
+    return doc;
   }
 
-  let readerDir = "", readerOpener = null, lastDoc = null;
+  // The language linked documents are written in: "docsLanguage", else the file's own.
+  const docsLang = () => (content.CODE.test(data?.docsLanguage) ? data.docsLanguage : baseLang(data));
+
+  // A document through the translation services, line by line; complete is false when some text
+  // could not be translated, and then nothing is kept.
+  async function translateDoc(chain, src, from, target) {
+    const parts = content.markdownParts(src);
+    const max = Math.max(...chain.map((e) => content.PROVIDERS[e.provider].max));
+    const cache = mtCache[`${from}|${target}`] || {}, got = {};
+    const get = (t) => got[t] ?? cache[t];
+    let complete = true, warned = false;
+    const run = async (list) => {
+      const todo = list.filter((t) => !get(t));
+      if (todo.some((t) => t.length > max)) complete = false;
+      const jobs = [];
+      const fit = todo.filter((t) => t.length <= max);
+      for (let i = 0; i < fit.length; i += 20) jobs.push(fit.slice(i, i + 20));
+      let next = 0;
+      const worker = async () => {
+        while (next < jobs.length) {
+          const job = jobs[next++];
+          try { (await translateBatch(chain, job, from, target)).forEach((t, i) => { got[job[i]] = t; }); }
+          catch (err) {
+            complete = false;
+            if (!warned) { warned = true; toast(tr("translate.failed", { message: err.message }), { alert: true }); }
+          }
+        }
+      };
+      await Promise.all([worker(), worker(), worker()]);
+    };
+    await run(parts.texts);
+    const again = parts.fallback(get);
+    if (again.length) await run(again);
+    return { text: parts.build(get), complete };
+  }
+
+  let readerDir = "", readerOpener = null, lastDoc = null, readerAnchors = new Map();
   async function openDoc(ref, title) {
     const [path, anchor = ""] = ref.split("#");
     const reader = $("reader"), body = $("reader-body");
@@ -301,27 +347,64 @@
     if (!reader.open) { readerOpener = document.activeElement; reader.showModal(); }
     $("reader-title").textContent = title || docTitle(path);
     $("reader-path").textContent = path;
+    $("reader-note").hidden = true;
     $("reader-toc").innerHTML = "";
     body.setAttribute("aria-busy", "true");
     body.innerHTML = `<p class="loading">${esc(tr("doc.loading"))}</p>`;
+    const current = () => lastDoc?.[0] === ref && reader.open;
     try {
-      const src = await fetchDoc(path);
+      const target = i18n.lang, from = docsLang();
+      const wanted = content.order(target, from);
+      let doc = await fetchDoc(path, wanted[0]);
+      const chain = engines.filter(usable);
+      const machineMade = wanted[0] === target && doc.lang !== target && chain.length > 0;
+      if (!doc.lang && wanted[1] && !machineMade) doc = await fetchDoc(path, wanted[1]);
       readerDir = path.includes("/") ? path.slice(0, path.lastIndexOf("/") + 1) : "";
-      if (/\.txt$/i.test(path)) body.innerHTML = `<pre class="plain">${esc(src)}</pre>`;
-      else {
-        const out = window.docziMarkdown.render(src, { linked, dir: readerDir });
-        body.innerHTML = out.html;
-        const toc = out.toc.filter((h) => h.level === 2).slice(0, 30);
-        $("reader-toc").innerHTML = toc.length > 1 ? toc.map((h) => `<a href="#" data-anchor="${esc(h.id)}">${esc(h.plain)}</a>`).join("") : "";
-      }
-      if (anchor) scrollToAnchor(anchor); else reader.scrollTop = 0;
+      await showDoc(path, doc, anchor);
+      if (!machineMade || !current()) return;
+      $("reader-note").textContent = tr("doc.translating", { language: languageName(target) });
+      $("reader-note").hidden = false;
+      const original = doc.text;
+      const out = await translateDoc(chain, original, from, target);
+      if (!current()) return;
+      if (!out.complete) { $("reader-note").hidden = true; return; }
+      const made = { text: out.text, lang: target };
+      docCache.set(`${path}|${target}`, made);
+      await showDoc(path, made, anchor, original);
+      $("reader-note").textContent = tr("content.machine", { provider: i18n.list([...new Set(chain.map((e) => content.PROVIDERS[e.provider].name))], "disjunction") });
+      if (mode === "api") saveTranslations(target, { docs: [{ path, text: out.text }] });
     } catch (err) {
       body.innerHTML = err.status === 404
         ? `<p class="error">${esc(tr("doc.notFound", { path }))}</p>`
         : `<p class="error">${esc(tr("doc.error", { path, message: err.message }))}</p><p><button type="button" class="primary" data-doc-retry>${esc(tr("retry"))}</button></p>`;
     } finally { body.removeAttribute("aria-busy"); }
   }
+
+  // Show a document; a translation keeps the original's section links working (#scope finds the
+  // translated heading in the same place).
+  async function showDoc(path, doc, anchor, original = null) {
+    const body = $("reader-body"), reader = $("reader");
+    $("reader-path").textContent = doc.lang ? content.translatedPath(path, doc.lang) : path;
+    const lang = doc.lang || docsLang();
+    body.lang = lang;
+    body.dir = i18n.LANGUAGES.find((l) => l.code === lang)?.dir || (["ar", "fa", "he", "ur"].includes(lang) ? "rtl" : "ltr");
+    readerAnchors = new Map();
+    if (/\.txt$/i.test(path)) { body.innerHTML = `<pre class="plain">${esc(doc.text)}</pre>`; $("reader-toc").innerHTML = ""; }
+    else {
+      const out = window.docziMarkdown.render(doc.text, { linked, dir: readerDir });
+      body.innerHTML = out.html;
+      const toc = out.toc.filter((h) => h.level === 2).slice(0, 30);
+      $("reader-toc").innerHTML = toc.length > 1 ? toc.map((h) => `<a href="#" data-anchor="${esc(h.id)}">${esc(h.plain)}</a>`).join("") : "";
+      if (doc.lang && (anchor || /\]\(#/.test(doc.text))) {
+        const src = original ?? (await fetchDoc(path).catch(() => null))?.text;
+        const before = src ? window.docziMarkdown.render(src, { linked, dir: readerDir }).toc : [];
+        if (before.length === out.toc.length) before.forEach((h, i) => readerAnchors.set(h.id, out.toc[i].id));
+      }
+    }
+    if (anchor) scrollToAnchor(anchor); else reader.scrollTop = 0;
+  }
   function scrollToAnchor(id) {
+    id = readerAnchors.get(id) || id;
     const el = $("reader-body").querySelector(`[id="${CSS.escape(id)}"]`);
     if (el) { el.scrollIntoView({ block: "start" }); el.setAttribute("tabindex", "-1"); el.focus({ preventScroll: true }); }
   }
@@ -392,14 +475,14 @@
     machine = content.lookup();
     const target = i18n.lang, base = baseLang(data);
     const chain = engines.filter(usable);
-    const live = chain.length > 0 && translation?.lang !== target && base !== target;
+    const live = chain.length > 0 && base !== target;
     const note = [];
     if (base !== target) {
       if (translation?.lang === target) note.push(tr("content.file", { language: languageName(target) }));
       else if (translation) note.push(tr("content.fallback", { wanted: languageName(target), language: languageName(translation.lang) }));
       else note.push(tr("content.original", { wanted: languageName(target) }));
     }
-    if (live) note.push(tr("content.machine", { provider: i18n.list([...new Set(chain.map((e) => content.PROVIDERS[e.provider].name))], "disjunction") }));
+    if (live && translation?.lang !== target) note.push(tr("content.machine", { provider: i18n.list([...new Set(chain.map((e) => content.PROVIDERS[e.provider].name))], "disjunction") }));
     $("content-note").textContent = note.join(" ");
     $("content-note").hidden = !note.length;
     if (live) machineTranslate(chain, target);
@@ -421,6 +504,7 @@
       wanted.get(id).push([o, k]);
     }
     if (wanted.size) fetchTranslations(chain, target, wanted);
+    else keepTranslation(target);
   }
 
   // One batch through the services in order: the first that answers wins.
@@ -434,7 +518,8 @@
         for (let i = 0; i < list.length; i += provider.batch) {
           const part = list.slice(i, i + provider.batch);
           const req = provider.request(part, from, target, engine);
-          const res = await fetch(req.url, req.body ? { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(req.body) } : {});
+          // The page sends no referrer, but a key limited to websites needs the page's origin.
+          const res = await fetch(req.url, { referrerPolicy: "origin", ...(req.body ? { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(req.body) } : {}) });
           if (!res.ok) throw new Error(`${provider.name}: ${res.status} ${res.statusText}`);
           const got = provider.read(await res.json());
           if (part.some((_, j) => typeof got[j] !== "string" || !got[j].trim())) throw new Error(`${provider.name}: ${tr("translate.noAnswer")}`);
@@ -487,6 +572,41 @@
       }
       paintHead();
       render();
+      keepTranslation(target);
+    }
+  }
+
+  // Once every text is in the reader's language and the services made some of it, the project
+  // keeps it: the server writes it next to the progress file and commits it, so the next reader
+  // gets it from the file.
+  const kept = new Set();
+  function keepTranslation(target) {
+    if (mode !== "api" || !projectId || i18n.lang !== target) return;
+    let made = false;
+    const copy = content.translated(data, (o, k) => {
+      if (machine.has(o, k)) { made = true; return machine.text(o, k); }
+      return translation?.lang === target && texts.has(o, k) ? texts.text(o, k) : null;
+    });
+    if (!copy || !made) return;
+    const key = `${projectId}|${target}|${JSON.stringify(copy)}`;
+    if (kept.has(key)) return;
+    kept.add(key);
+    saveTranslations(target, { progress: copy });
+  }
+
+  async function saveTranslations(lang, body) {
+    try {
+      const r = await api(`api/projects/${encodeURIComponent(projectId)}/translations/${lang}`, { method: "PUT", body: JSON.stringify(body) });
+      if (r.written.length) {
+        const files = i18n.list(r.written);
+        if (r.commit) toast(tr("translate.committed", { files, commit: r.commit.slice(0, 7) }));
+        else if (r.gitError) toast(tr("translate.notCommitted", { files, message: r.gitError }), { alert: true });
+        else toast(tr("translate.saved", { files }));
+      }
+      return r;
+    } catch (err) {
+      toast(tr("translate.saveFailed", { message: err.message }), { alert: true });
+      return null;
     }
   }
 

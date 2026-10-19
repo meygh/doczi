@@ -188,4 +188,9 @@
   "translate.keyMissing": "Noch kein Schlüssel",
   "translate.free": "Kostenlos, ohne Schlüssel",
   "translate.noAnswer": "keine Übersetzung erhalten",
+  "translate.committed": "{files} im Projekt gespeichert und committet ({commit}).",
+  "translate.notCommitted": "{files} im Projekt gespeichert, aber git hat nicht committet: {message}",
+  "translate.saved": "{files} im Projekt gespeichert.",
+  "translate.saveFailed": "Die Übersetzung konnte nicht im Projekt gespeichert werden: {message}",
+  "doc.translating": "Wird ins {language} übersetzt…",
 };

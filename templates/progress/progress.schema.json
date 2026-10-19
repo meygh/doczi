@@ -25,6 +25,11 @@
       "pattern": "^[a-z]{2,3}$",
       "description": "The language the file is written in; English when missing. Translations sit next to the file as <name>.<language>.json."
     },
+    "docsLanguage": {
+      "type": "string",
+      "pattern": "^[a-z]{2,3}$",
+      "description": "The language the linked documents are written in, when it differs from \"language\". Their translations sit next to them as <name>.<language>.md."
+    },
     "updated": {
       "type": "string",
       "format": "date",

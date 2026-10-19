@@ -188,4 +188,9 @@
   "translate.keyMissing": "Sin clave todavía",
   "translate.free": "Gratis, sin clave",
   "translate.noAnswer": "no llegó ninguna traducción",
+  "translate.committed": "{files} guardado en el proyecto y confirmado ({commit}).",
+  "translate.notCommitted": "{files} guardado en el proyecto, pero git no lo confirmó: {message}",
+  "translate.saved": "{files} guardado en el proyecto.",
+  "translate.saveFailed": "No se pudo guardar la traducción en el proyecto: {message}",
+  "doc.translating": "Traduciendo al {language}…",
 };

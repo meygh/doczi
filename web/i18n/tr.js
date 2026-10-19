@@ -188,4 +188,9 @@
   "translate.keyMissing": "Henüz anahtar yok",
   "translate.free": "Ücretsiz, anahtarsız",
   "translate.noAnswer": "çeviri gelmedi",
+  "translate.committed": "{files} projede saklandı ve commit edildi ({commit}).",
+  "translate.notCommitted": "{files} projede saklandı, ancak git commit etmedi: {message}",
+  "translate.saved": "{files} projede saklandı.",
+  "translate.saveFailed": "Çeviri projede saklanamadı: {message}",
+  "doc.translating": "{language} diline çevriliyor…",
 };

@@ -188,4 +188,9 @@
   "translate.keyMissing": "هنوز کلیدی نیست",
   "translate.free": "رایگان، بدون کلید",
   "translate.noAnswer": "ترجمه‌ای برنگشت",
+  "translate.committed": "{files} در پروژه نگه داشته و کامیت شد ({commit}).",
+  "translate.notCommitted": "{files} در پروژه نگه داشته شد، اما git آن را کامیت نکرد: {message}",
+  "translate.saved": "{files} در پروژه نگه داشته شد.",
+  "translate.saveFailed": "ترجمه در پروژه نگه داشته نشد: {message}",
+  "doc.translating": "در حال ترجمه به {language}…",
 };

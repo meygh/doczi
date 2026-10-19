@@ -13,6 +13,7 @@ const CONFIG_FILES = ['.doczi.json', '.solo-keel.json']; // second one: legacy
 const HOME_DIR = '.doczi';
 const LEGACY_HOME_DIR = '.solo-keel';
 const MAX_BODY = 65536;
+const MAX_TRANSLATIONS_BODY = 8388608;
 const MAX_DOC = 2097152;
 const MAX_REASON = 2000;
 const MAX_ANSWER = 4000;
@@ -239,7 +240,7 @@ function writeAtomic(string $root, string $path, string $text): void
     }
 }
 
-function jsonBody(int $port): array
+function jsonBody(int $port, int $max = MAX_BODY, bool $assoc = true)
 {
     if (!preg_match('#^application/json\b#i', $_SERVER['CONTENT_TYPE'] ?? $_SERVER['HTTP_CONTENT_TYPE'] ?? '')) {
         throw new HttpError(415, 'Send JSON (Content-Type: application/json).');
@@ -248,15 +249,15 @@ function jsonBody(int $port): array
     if ($origin !== null && !in_array($origin, ["http://127.0.0.1:$port", "http://localhost:$port"], true)) {
         throw new HttpError(403, 'Cross-site requests are not allowed.');
     }
-    if ((int) ($_SERVER['CONTENT_LENGTH'] ?? 0) > MAX_BODY) {
+    if ((int) ($_SERVER['CONTENT_LENGTH'] ?? 0) > $max) {
         throw new HttpError(413, 'The request body is too large.');
     }
-    $text = (string) file_get_contents('php://input', false, null, 0, MAX_BODY + 1);
-    if (strlen($text) > MAX_BODY) {
+    $text = (string) file_get_contents('php://input', false, null, 0, $max + 1);
+    if (strlen($text) > $max) {
         throw new HttpError(413, 'The request body is too large.');
     }
-    $body = json_decode($text, true);
-    if (!is_array($body)) {
+    $body = json_decode($text, $assoc);
+    if ($assoc ? !is_array($body) : !is_object($body)) {
         throw new HttpError(400, 'The body is not valid JSON.');
     }
     return $body;
@@ -423,7 +424,118 @@ function getTranslation(string $id, string $lang): void
     send(200, (string) file_get_contents($file));
 }
 
-function getDoc(string $id, string $wanted): void
+// The language code goes before the extension: docs/SRS.md → docs/SRS.fa.md.
+function translatedPath(string $file, string $lang): string
+{
+    return preg_match('#\.[^./\\\\]+$#', $file) ? preg_replace('#(\.[^./\\\\]+)$#', ".$lang\$1", $file) : "$file.$lang";
+}
+
+// Save translations the dashboard made, then commit exactly those files (lib/translations.mjs).
+function putTranslations(string $id, string $lang, int $port): void
+{
+    $body = jsonBody($port, MAX_TRANSLATIONS_BODY, false);
+    [$root, $path] = findProject($id);
+    $writes = [];
+    if (property_exists($body, 'progress')) {
+        $progress = $body->progress;
+        if (!is_object($progress) || !is_array($progress->milestones ?? null)) {
+            throw new HttpError(400, 'A translated progress file needs a "milestones" list.');
+        }
+        $progress->language = $lang;
+        $text = formatProgress($progress);
+        if (strlen($text) > MAX_DOC) {
+            throw new HttpError(413, 'That translation is larger than 2 MiB.');
+        }
+        $writes[] = [translatedPath($path, $lang), $text, true];
+    }
+    if (property_exists($body, 'docs')) {
+        if (!is_array($body->docs)) {
+            throw new HttpError(400, '"docs" must be a list of { path, text }.');
+        }
+        $linked = linkedDocs(readProgressFile($path));
+        foreach ($body->docs as $d) {
+            $p = is_object($d) && is_string($d->path ?? null) ? preg_replace('#^\./#', '', str_replace('\\', '/', trim(explode('#', $d->path)[0]))) : '';
+            if ($p === '' || str_contains($p, ':') || !preg_match('/\.(md|markdown|txt)$/i', $p) || !isset($linked[$p])) {
+                throw new HttpError(404, ($p === '' ? 'That document' : $p) . " is not linked from this project's progress file.");
+            }
+            if (!is_string($d->text ?? null) || trim($d->text) === '') {
+                throw new HttpError(400, "Send the translated text of $p.");
+            }
+            if (strlen($d->text) > MAX_DOC) {
+                throw new HttpError(413, 'That translation is larger than 2 MiB.');
+            }
+            $writes[] = [normalizePath($root . '/' . translatedPath($p, $lang)), str_replace(["\r\n", "\r"], "\n", $d->text), false];
+        }
+    }
+    foreach ($writes as [$file]) {
+        if (!isWithin($root, $file)) {
+            throw new HttpError(404, 'That translation would leave the project.');
+        }
+        try {
+            assertInside($root, $file);
+        } catch (HttpError $e) {
+            throw new HttpError(404, 'That translation would leave the project.');
+        }
+    }
+    $written = [];
+    $kept = [];
+    foreach ($writes as [$file, $text, $replace]) {
+        $name = ltrim(substr($file, strlen($root)), '/');
+        $old = is_file($file) ? (string) file_get_contents($file) : null;
+        if ($old !== null && (!$replace || $old === $text)) {
+            $kept[] = $name;
+            continue;
+        }
+        if (!is_dir(dirname($file))) {
+            mkdir(dirname($file), 0777, true);
+        }
+        writeAtomic($root, $file, $text);
+        $written[] = $name;
+    }
+    $result = ['written' => $written, 'kept' => $kept, 'commit' => null];
+    if ($written) {
+        $git = function (array $args) use ($root): string {
+            $proc = proc_open(array_merge(['git'], $args), [0 => ['file', PHP_OS_FAMILY === 'Windows' ? 'NUL' : '/dev/null', 'r'], 1 => ['pipe', 'w'], 2 => ['pipe', 'w']], $pipes, $root);
+            if (!is_resource($proc)) {
+                throw new RuntimeException('git could not be started');
+            }
+            $out = stream_get_contents($pipes[1]);
+            $err = stream_get_contents($pipes[2]);
+            fclose($pipes[1]);
+            fclose($pipes[2]);
+            if (proc_close($proc) !== 0) {
+                throw new RuntimeException(trim($err) !== '' ? trim($err) : 'git failed');
+            }
+            return trim((string) $out);
+        };
+        try {
+            if ($git(['rev-parse', '--is-inside-work-tree']) === 'true') {
+                $git(array_merge(['add', '--'], $written));
+                $git(array_merge(['commit', '-m', commitSubject($lang, $written, ltrim(substr(translatedPath($path, $lang), strlen($root)), '/')), '-m', 'Generated by: Doczi', '--'], $written));
+                $result['commit'] = $git(['rev-parse', 'HEAD']);
+            }
+        } catch (RuntimeException $e) {
+            $lines = array_slice(explode("\n", trim($e->getMessage())), -3);
+            $result['gitError'] = implode(' ', $lines);
+        }
+    }
+    sendJson(200, $result);
+}
+
+function commitSubject(string $lang, array $written, string $progressName): string
+{
+    $docs = count(array_filter($written, fn ($w) => $w !== $progressName));
+    $parts = [];
+    if (in_array($progressName, $written, true)) {
+        $parts[] = 'the progress file';
+    }
+    if ($docs) {
+        $parts[] = $docs === 1 ? '1 document' : "$docs documents";
+    }
+    return "docs(i18n): $lang translation of " . implode(' and ', $parts);
+}
+
+function getDoc(string $id, string $wanted, string $lang = ''): void
 {
     $notFound = new HttpError(404, 'That document is not linked from this project\'s progress file.');
     $rel = preg_replace('#^\./#', '', str_replace('\\', '/', trim(explode('#', $wanted)[0])));
@@ -445,6 +557,19 @@ function getDoc(string $id, string $wanted): void
     }
     if (filesize($file) > MAX_DOC) {
         throw new HttpError(413, 'That document is larger than 2 MiB.');
+    }
+    if (preg_match('/^[a-z]{2,3}$/', $lang)) {
+        $translated = normalizePath($root . '/' . translatedPath($rel, $lang));
+        try {
+            assertInside($root, $translated);
+            if (is_file($translated) && filesize($translated) <= MAX_DOC) {
+                $text = preg_replace('/^\xEF\xBB\xBF/', '', (string) file_get_contents($translated));
+                sendJson(200, ['path' => $rel, 'lang' => $lang, 'text' => $text]);
+                return;
+            }
+        } catch (HttpError $e) {
+            // no translation: the document as written
+        }
     }
     $text = preg_replace('/^\xEF\xBB\xBF/', '', (string) file_get_contents($file));
     sendJson(200, ['path' => $rel, 'text' => $text]);
@@ -491,7 +616,9 @@ try {
     } elseif ($method === 'GET' && preg_match('#^/api/projects/([^/]+)/progress/([a-z]{2,3})$#', $route, $m)) {
         getTranslation($m[1], $m[2]);
     } elseif ($method === 'GET' && preg_match('#^/api/projects/([^/]+)/docs$#', $route, $m)) {
-        getDoc($m[1], (string) ($_GET['path'] ?? ''));
+        getDoc($m[1], (string) ($_GET['path'] ?? ''), (string) ($_GET['lang'] ?? ''));
+    } elseif ($method === 'PUT' && preg_match('#^/api/projects/([^/]+)/translations/([a-z]{2,3})$#', $route, $m)) {
+        putTranslations($m[1], $m[2], $port);
     } elseif ($method === 'PATCH' && preg_match('#^/api/projects/([^/]+)/steps$#', $route, $m)) {
         patchStep($m[1], $port);
     } elseif ($method === 'PATCH' && preg_match('#^/api/projects/([^/]+)/questions$#', $route, $m)) {

@@ -10,12 +10,14 @@ import { get, list } from "../../lib/registry.mjs";
 import { assertInside, openProject, readProgress, writeProgress } from "../../lib/store.mjs";
 import { LockBusyError, withLockSync } from "../../lib/lock.mjs";
 import { env } from "../../lib/names.mjs";
+import { LANG, saveTranslations, translatedPath } from "../../lib/translations.mjs";
 
 const repo = fileURLToPath(new URL("../../", import.meta.url));
 const VERSION = JSON.parse(fs.readFileSync(path.join(repo, "package.json"), "utf8")).version;
 const argPort = process.argv.indexOf("--port");
 const PORT = Number(argPort > 0 ? process.argv[argPort + 1] : env("PORT") || 4800);
 const MAX_BODY = 64 * 1024;
+const MAX_TRANSLATIONS_BODY = 8 * 1024 * 1024;
 const MAX_DOC = 2 * 1024 * 1024;
 const MAX_REASON = 2000;
 const MAX_ANSWER = 4000;
@@ -52,14 +54,14 @@ function send(res, status, body, type = "application/json; charset=utf-8", extra
   res.end(data);
 }
 
-function readBody(req) {
+function readBody(req, max = MAX_BODY) {
   return new Promise((resolve, reject) => {
-    if (Number(req.headers["content-length"] || 0) > MAX_BODY) return reject(new HttpError(413, "The request body is too large."));
+    if (Number(req.headers["content-length"] || 0) > max) return reject(new HttpError(413, "The request body is too large."));
     let size = 0;
     const chunks = [];
     req.on("data", (c) => {
       size += c.length;
-      if (size > MAX_BODY) { reject(new HttpError(413, "The request body is too large.")); req.destroy(); }
+      if (size > max) { reject(new HttpError(413, "The request body is too large.")); req.destroy(); }
       else chunks.push(c);
     });
     req.on("end", () => resolve(Buffer.concat(chunks).toString("utf8")));
@@ -67,11 +69,11 @@ function readBody(req) {
   });
 }
 
-async function jsonBody(req) {
+async function jsonBody(req, max = MAX_BODY) {
   if (!/^application\/json\b/i.test(req.headers["content-type"] || "")) throw new HttpError(415, "Send JSON (Content-Type: application/json).");
   const origin = req.headers.origin;
   if (origin !== undefined && !allowedOrigins.has(origin)) throw new HttpError(403, "Cross-site requests are not allowed.");
-  const text = await readBody(req);
+  const text = await readBody(req, max);
   try { return JSON.parse(text) ?? {}; } catch { throw new HttpError(400, "The body is not valid JSON."); }
 }
 
@@ -151,7 +153,13 @@ function getTranslation(id, lang) {
   return fs.readFileSync(file, "utf8");
 }
 
-function getDoc(id, wanted) {
+async function putTranslations(req, id, lang) {
+  const body = await jsonBody(req, MAX_TRANSLATIONS_BODY);
+  try { return saveTranslations(projectOrThrow(id), lang, body); }
+  catch (err) { throw err.status ? new HttpError(err.status, err.message) : err; }
+}
+
+function getDoc(id, wanted, lang) {
   const notFound = new HttpError(404, "That document is not linked from this project's progress file.");
   const rel = String(wanted || "").split("#")[0].trim().replace(/\\/g, "/").replace(/^\.\//, "");
   if (!rel || rel.includes(":") || !DOC_TYPES.test(rel)) throw notFound;
@@ -166,6 +174,14 @@ function getDoc(id, wanted) {
   try { stat = fs.statSync(file); } catch { throw new HttpError(404, `The linked document ${rel} does not exist.`); }
   if (!stat.isFile()) throw notFound;
   if (stat.size > MAX_DOC) throw new HttpError(413, "That document is larger than 2 MiB.");
+  if (lang && LANG.test(lang)) {
+    const translated = path.resolve(project.root, translatedPath(rel, lang));
+    try {
+      assertInside(project.root, translated);
+      const t = fs.statSync(translated);
+      if (t.isFile() && t.size <= MAX_DOC) return { path: rel, lang, text: fs.readFileSync(translated, "utf8").replace(/^\uFEFF/, "") };
+    } catch { /* no translation: the document as written */ }
+  }
   return { path: rel, text: fs.readFileSync(file, "utf8").replace(/^﻿/, "") };
 }
 
@@ -192,7 +208,10 @@ const server = http.createServer(async (req, res) => {
       return send(res, 200, getTranslation(decodeId(m[1]), m[2]));
     }
     if (req.method === "GET" && (m = route.match(/^\/api\/projects\/([^/]+)\/docs$/))) {
-      return send(res, 200, getDoc(decodeId(m[1]), url.searchParams.get("path")));
+      return send(res, 200, getDoc(decodeId(m[1]), url.searchParams.get("path"), url.searchParams.get("lang")));
+    }
+    if (req.method === "PUT" && (m = route.match(/^\/api\/projects\/([^/]+)\/translations\/([a-z]{2,3})$/))) {
+      return send(res, 200, await putTranslations(req, decodeId(m[1]), m[2]));
     }
     if (req.method === "PATCH" && (m = route.match(/^\/api\/projects\/([^/]+)\/steps$/))) {
       return send(res, 200, await patchStep(req, decodeId(m[1])));
