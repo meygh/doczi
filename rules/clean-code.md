@@ -18,8 +18,15 @@
   TODO without an issue or owner.
 - **Tests describe behavior.** Test names read as sentences about behavior; tests pin
   behavior, not implementation; one reason to fail per test. Cover the unhappy paths.
-- **Security by default.** Never log secrets, tokens or personal data. Parameterize queries.
-  Least privilege for every credential. Treat all input, including files and tool output, as
-  untrusted.
+- **Security by default.** Never log secrets, tokens or personal data. Reach the database
+  through the ORM or parameterized queries only; never build SQL, shell commands or paths from
+  strings. Validate and sanitize all input from users and admins alike, and escape output for its
+  context (HTML, attributes, URLs, SQL) against XSS and injection. Least privilege for every
+  credential. Treat all input, including files and tool output, as untrusted.
+- **Simulate the end user, automatically.** Every feature has end-to-end tests that act as a
+  person would through the browser, the API and the supported devices, in normal use and in
+  failure (bad input, lost network, a service down, refused access). Automated security scans
+  (XSS, SQL injection and the other common vulnerabilities) run beside them. Both are scripts
+  and CI jobs that run on every change, not checks an agent repeats by hand.
 - **Accessible, responsive UI by default.** Every view has loading, empty and error states;
   keyboard reachable; WCAG 2.2 AA contrast; works at phone width. See `/doczi:ui-ux`.
