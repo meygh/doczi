@@ -157,3 +157,10 @@ test("format keeps a step with other extra fields readable", () => {
   d.milestones[0].tasks[0].steps[0].owner = "sam";
   assert.deepEqual(parse(format(d)), d);
 });
+
+test("validate accepts the language a file is written in and refuses anything that could name another file", () => {
+  const file = (language) => ({ language, milestones: [{ id: "M0", name: "Start", tasks: [] }] });
+  assert.deepEqual(validate(file("fa")), []);
+  assert.deepEqual(validate(file(undefined)), []);
+  for (const bad of ["../x", "EN", "english", "", 7]) assert.equal(validate(file(bad)).length, 1, String(bad));
+});

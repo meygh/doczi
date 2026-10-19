@@ -3,7 +3,7 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<meta http-equiv="Content-Security-Policy" content="default-src 'self'; img-src 'self' data:; base-uri 'none'; form-action 'none'">
+<meta http-equiv="Content-Security-Policy" content="default-src 'self'; connect-src 'self' https://api.mymemory.translated.net https://translation.googleapis.com https://libretranslate.com http://localhost:5000 http://127.0.0.1:5000; img-src 'self' data:; base-uri 'none'; form-action 'none'">
 <title>Project progress</title>
 <script src="theme.js"></script>
 <script src="i18n/en.js"></script>
@@ -18,6 +18,7 @@
     <div class="brand">
       <h1 id="title" data-i18n="page.title">Project progress</h1>
       <p class="sub" id="updated"></p>
+      <p class="sub" id="content-note" hidden></p>
     </div>
     <div class="topbar-tools">
       <label class="project-picker" id="project-picker" hidden>
@@ -34,6 +35,7 @@
         <span class="visually-hidden" data-i18n="language.label">Language</span>
         <select id="language" data-i18n-attr="aria-label:language.label"></select>
       </label>
+      <button id="translate-open" class="ghost" data-i18n="translate.button">Translate</button>
       <button id="theme" class="ghost" data-i18n-attr="title:theme.title"></button>
     </div>
   </div>
@@ -142,9 +144,28 @@
   <article class="doc" id="reader-body"></article>
 </dialog>
 
+<dialog id="translate" aria-labelledby="translate-title">
+  <form method="dialog" id="translate-form">
+    <h2 id="translate-title" data-i18n="translate.title">Machine translation</h2>
+    <p class="sub" data-i18n="translate.intro">Text that no translation file covers can be translated by a service you pick.</p>
+    <label><span data-i18n="translate.provider">Service</span>
+      <select id="translate-provider" name="provider"></select></label>
+    <label id="translate-key-row"><span data-i18n="translate.key">API key</span>
+      <input id="translate-key" name="key" type="password" autocomplete="off"></label>
+    <label id="translate-url-row"><span data-i18n="translate.url">Server address</span>
+      <input id="translate-url" name="url" type="url"></label>
+    <p class="sub" data-i18n="translate.privacy">The text is sent to that service. Your choice and key stay in this browser.</p>
+    <div class="row">
+      <button type="button" id="translate-cancel" data-i18n="translate.cancel">Cancel</button>
+      <button class="primary" type="submit" data-i18n="translate.save">Save</button>
+    </div>
+  </form>
+</dialog>
+
 <div class="toast" id="toast" role="status" aria-live="polite"><span id="toast-text"></span><button type="button" id="toast-undo" hidden data-i18n="toast.undo">Undo</button></div>
 <script src="markdown.js"></script>
 <script src="export.js"></script>
+<script src="content.js"></script>
 <script src="app.js"></script>
 </body>
 </html>

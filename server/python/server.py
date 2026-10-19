@@ -28,13 +28,14 @@ MAX_REASON = 2000
 MAX_ANSWER = 4000
 STATUSES = ("done", "review", "doing", "blocked", "todo")
 DOC_TYPES = re.compile(r"\.(md|markdown|txt)$", re.I)
-CSP = "default-src 'self'; img-src 'self' data:; base-uri 'none'; form-action 'none'; frame-ancestors 'none'"
+CSP = "default-src 'self'; connect-src 'self' https://api.mymemory.translated.net https://translation.googleapis.com https://libretranslate.com http://localhost:5000 http://127.0.0.1:5000; img-src 'self' data:; base-uri 'none'; form-action 'none'; frame-ancestors 'none'"
 FILES = {
     "/": ("index.html", "text/html; charset=utf-8"),
     "/index.html": ("index.html", "text/html; charset=utf-8"),
     "/app.js": ("app.js", "text/javascript; charset=utf-8"),
     "/markdown.js": ("markdown.js", "text/javascript; charset=utf-8"),
     "/export.js": ("export.js", "text/javascript; charset=utf-8"),
+    "/content.js": ("content.js", "text/javascript; charset=utf-8"),
     "/i18n.js": ("i18n.js", "text/javascript; charset=utf-8"),
     "/i18n/en.js": ("i18n/en.js", "text/javascript; charset=utf-8"),
     "/i18n/fa.js": ("i18n/fa.js", "text/javascript; charset=utf-8"),
@@ -132,6 +133,22 @@ def find_project(project_id):
                 raise HttpError(404, f'Project "{project_id}" has no progress file yet.')
             return os.path.abspath(p["path"]), path
     raise HttpError(404, f'No project "{project_id}".')
+
+
+def read_translation(project_id, lang):
+    """A translation of the progress file, next to it: milestones.json → milestones.<lang>.json."""
+    root, path = find_project(project_id)
+    file = re.sub(r"(\.json)?$", f".{lang}.json", path, count=1, flags=re.IGNORECASE)
+    missing = HttpError(404, f'There is no "{lang}" translation of this progress file.')
+    try:
+        assert_inside(root, file)
+    except HttpError:
+        raise missing
+    if not os.path.isfile(file):
+        raise missing
+    if os.path.getsize(file) > MAX_DOC:
+        raise HttpError(413, "That translation is larger than 2 MiB.")
+    return Path(file).read_bytes()
 
 
 def read_progress(path):
@@ -333,6 +350,9 @@ class Handler(BaseHTTPRequestHandler):
             if method == "GET" and m:
                 _, path = find_project(m.group(1))
                 return self.send(200, Path(path).read_bytes())
+            m = re.fullmatch(r"/api/projects/([^/]+)/progress/([a-z]{2,3})", route)
+            if method == "GET" and m:
+                return self.send(200, read_translation(m.group(1), m.group(2)))
             m = re.fullmatch(r"/api/projects/([^/]+)/docs", route)
             if method == "GET" and m:
                 wanted = parse_qs(url.query).get("path", [""])[0]

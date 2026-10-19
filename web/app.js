@@ -21,6 +21,10 @@
   const DOC_ICON = '<svg class="doc-icon" viewBox="0 0 16 16" aria-hidden="true"><path fill="currentColor" d="M4 1h5l4 4v9a1 1 0 0 1-1 1H4a1 1 0 0 1-1-1V2a1 1 0 0 1 1-1zm4.5 1.5V6H12M5 8h6v1H5zm0 2.5h6v1H5z"/></svg>';
   const esc = (s) => String(s ?? "").replace(/[&<>"']/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c]));
   const text = (v) => (typeof v === "string" && v.trim() ? v.trim() : "");
+  // The file's text in the reader's language where a translation has it (web/content.js).
+  const content = window.docziContent;
+  let texts = content.lookup(), machine = content.lookup();
+  const T = (o, k) => (machine.has(o, k) ? machine.text(o, k) : texts.text(o, k));
   const motion = () => (matchMedia("(prefers-reduced-motion: reduce)").matches ? "auto" : "smooth");
 
   const storage = {
@@ -80,6 +84,7 @@
   let local = {};                    // file mode: step key → { status, reason }
   let ticksKey = "";
   let retry = null;                  // what "Try again" re-runs
+  let translation = null;            // { lang, json } lending its text to `data`, or null
 
   async function api(path, options = {}) {
     const res = await fetch(path, { cache: "no-store", ...options, headers: { Accept: "application/json", ...(options.body ? { "Content-Type": "application/json" } : {}) } });
@@ -123,7 +128,11 @@
       if (!fromUrl) clearFilters();
     }
     if (!$("app").hidden) $("app").setAttribute("aria-busy", "true");
-    try { show(await api(`api/projects/${encodeURIComponent(id)}/progress`)); }
+    try {
+      const json = await api(`api/projects/${encodeURIComponent(id)}/progress`);
+      translation = await findTranslation(json);
+      show(json);
+    }
     catch (err) {
       retry = () => loadProject(id);
       const name = $("project").selectedOptions[0]?.text || id;
@@ -140,7 +149,9 @@
     try {
       const res = await fetch(dataFile, { cache: "no-store" });
       if (!res.ok) throw new Error(`${res.status} ${res.statusText}`);
-      show(await res.json());
+      const json = await res.json();
+      translation = await findTranslation(json);
+      show(json);
     } catch (err) {
       retry = startFile;
       fail(tr("error.loadTitle"), tr("error.readFile", { file: dataFile, message: err.message }));
@@ -150,10 +161,30 @@
   $("pick").onchange = async (e) => {
     const file = e.target.files[0];
     if (!file) return;
-    try { show(JSON.parse(await file.text())); }
+    try { translation = null; show(JSON.parse(await file.text())); }
     catch (err) { fail(tr("error.badJson"), `${file.name}: ${err.message}`); }
   };
   $("retry").onclick = () => { $("load-error").hidden = true; $("loading").hidden = false; retry?.(); };
+
+  // The language the file is written in ("language", English when it doesn't say).
+  const baseLang = (json) => (content.CODE.test(json?.language) ? json.language : "en");
+
+  // The reader's language, else English, else nothing (the file as written).
+  async function findTranslation(json) {
+    for (const code of content.order(i18n.lang, baseLang(json))) {
+      try {
+        let body;
+        if (mode === "api") body = await api(`api/projects/${encodeURIComponent(projectId)}/progress/${code}`);
+        else {
+          const res = await fetch(dataFile.replace(/(\.json)?$/i, `.${code}.json`), { cache: "no-store" });
+          if (!res.ok) continue;
+          body = await res.json();
+        }
+        if (body && Array.isArray(body.milestones)) return { lang: code, json: body };
+      } catch { /* not there or not valid: try the next */ }
+    }
+    return null;
+  }
 
   function fail(title, message, showFileHelp = mode === "file") {
     $("loading").hidden = true;
@@ -184,6 +215,7 @@
   const stepKey = (mi, ti, s) => `${data.milestones[mi].id}|${data.milestones[mi].tasks[ti].name}|${s.title}`;
   const statusOf = (s) => local[s.key]?.status || s.status;
   const reasonOf = (s) => (local[s.key] ? local[s.key].reason : s.reason);
+  const reasonShown = (s) => (local[s.key] ? local[s.key].reason : T(s, "reason"));
 
   function derive(statuses, explicitBlock) {
     if (explicitBlock || statuses.includes("blocked")) return "blocked";
@@ -211,14 +243,14 @@
         const n = { done: 0, review: 0, doing: 0 };
         statuses.forEach((s) => { counts.steps.total++; counts.steps[s]++; if (s in share) { share[s] += WORTH[s] / statuses.length; n[s]++; } });
         const status = derive(statuses, text(t.blocked));
-        const reasons = [text(t.blocked), ...t.steps.filter((s) => statusOf(s) === "blocked").map((s) => `${s.title}: ${text(reasonOf(s)) || tr("reason.none")}`)].filter(Boolean);
+        const reasons = [text(T(t, "blocked")), ...t.steps.filter((s) => statusOf(s) === "blocked").map((s) => `${T(s, "title")}: ${text(reasonShown(s)) || tr("reason.none")}`)].filter(Boolean);
         counts.tasks.total++; counts.tasks[status]++;
         const questions = Array.isArray(t.questions) ? t.questions : [];
         return { t, mi, ti, status, reasons, share, n, percent: pct(share), done: n.done, questions, open: questions.filter((q) => !text(q.a) || q.by === "agent").length };
       });
       const share = weighted(tasks, () => 1);
       const status = derive(tasks.map((x) => x.status), text(m.blocked));
-      const reasons = [text(m.blocked), ...tasks.flatMap((x) => x.reasons.map((r) => `${x.t.name}: ${r}`))].filter(Boolean);
+      const reasons = [text(T(m, "blocked")), ...tasks.flatMap((x) => x.reasons.map((r) => `${T(x.t, "name")}: ${r}`))].filter(Boolean);
       counts.milestones.total++; counts.milestones[status]++;
       return { m, mi, tasks, status, reasons, share, percent: pct(share), weight: typeof m.weight === "number" ? m.weight : 1 };
     });
@@ -233,7 +265,7 @@
   function docEntries(list) {
     if (!Array.isArray(list)) return [];
     return list.map((d) => (typeof d === "string" ? { path: d } : d)).filter((d) => d && text(d.path))
-      .map((d) => ({ path: d.path.trim(), title: text(d.title) || docTitle(d.path) }));
+      .map((d) => ({ path: d.path.trim(), title: text(T(d, "title")) || docTitle(d.path) }));
   }
   function docTitle(p) {
     const words = p.split("#")[0].split("/").pop().replace(/\.(md|markdown|txt)$/i, "").replace(/[-_]+/g, " ").trim();
@@ -336,6 +368,124 @@
     history.replaceState(null, "", `${location.pathname}${qs ? "?" + qs : ""}${hash || ""}`);
   }
 
+  // ---------------------------------------------------------------- the file's text in the reader's language
+  const MT_KEY = "doczi.translate", MT_CACHE = "doczi.translate.cache", MT_CACHE_MAX = 5000;
+  let mt = Object.assign({ provider: "off", key: "", url: "" }, storage.get(MT_KEY, {}));
+  let mtCache = storage.get(MT_CACHE, {});        // "provider|from|to" → { text: translation }
+  const mtPending = new Set(), mtFailed = new Set();
+  let mtWarned = false;
+  const languageName = (code) => { try { return new Intl.DisplayNames([i18n.lang], { type: "language" }).of(code) || code; } catch { return code; } };
+
+  // Called by show() for every new copy of the file: translations lend their text again.
+  function applyTexts() {
+    texts = content.overlay(data, translation?.json);
+    machine = content.lookup();
+    const target = i18n.lang, base = baseLang(data);
+    const provider = content.PROVIDERS[mt.provider];
+    const live = provider && !(provider.needs && !text(mt[provider.needs])) && translation?.lang !== target && base !== target;
+    const note = [];
+    if (base !== target) {
+      if (translation?.lang === target) note.push(tr("content.file", { language: languageName(target) }));
+      else if (translation) note.push(tr("content.fallback", { wanted: languageName(target), language: languageName(translation.lang) }));
+      else note.push(tr("content.original", { wanted: languageName(target) }));
+    }
+    if (live) note.push(tr("content.machine", { provider: provider.name }));
+    $("content-note").textContent = note.join(" ");
+    $("content-note").hidden = !note.length;
+    if (live) machineTranslate(provider, target);
+  }
+
+  // Text no file has in the reader's language: from the cache now, from the provider later.
+  function machineTranslate(provider, target) {
+    const wanted = new Map(); // "from|text" → [[object, field]]
+    for (const [o, k] of content.fields(data)) {
+      const from = texts.has(o, k) ? translation.lang : baseLang(data);
+      const source = texts.text(o, k);
+      if (from === target || source.length > provider.max) continue;
+      const bucket = `${mt.provider}|${from}|${target}`;
+      const hit = mtCache[bucket]?.[source];
+      if (hit) { machine.set(o, k, hit); continue; }
+      if (mtFailed.has(`${bucket}|${source}`)) continue;
+      const id = `${from}|${source}`;
+      if (!wanted.has(id)) wanted.set(id, []);
+      wanted.get(id).push([o, k]);
+    }
+    if (wanted.size) fetchTranslations(provider, target, wanted);
+  }
+
+  async function fetchTranslations(provider, target, wanted) {
+    const forData = data;
+    const byFrom = new Map();
+    for (const id of wanted.keys()) {
+      const cut = id.indexOf("|"), from = id.slice(0, cut), source = id.slice(cut + 1);
+      const key = `${mt.provider}|${from}|${target}|${source}`;
+      if (mtPending.has(key)) continue;
+      mtPending.add(key);
+      if (!byFrom.has(from)) byFrom.set(from, []);
+      byFrom.get(from).push(source);
+    }
+    const jobs = [];
+    for (const [from, list] of byFrom) for (let i = 0; i < list.length; i += provider.batch) jobs.push([from, list.slice(i, i + provider.batch)]);
+    let next = 0, changed = false;
+    const worker = async () => {
+      while (next < jobs.length) {
+        const [from, list] = jobs[next++];
+        const bucket = `${mt.provider}|${from}|${target}`;
+        try {
+          const req = provider.request(list, from, target, mt);
+          const res = await fetch(req.url, req.body ? { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(req.body) } : {});
+          if (!res.ok) throw new Error(`${res.status} ${res.statusText}`);
+          const out = provider.read(await res.json());
+          list.forEach((source, i) => {
+            if (typeof out[i] === "string" && out[i].trim()) { (mtCache[bucket] ||= {})[source] = out[i]; changed = true; }
+            else mtFailed.add(`${bucket}|${source}`);
+          });
+        } catch (err) {
+          list.forEach((source) => mtFailed.add(`${bucket}|${source}`));
+          if (!mtWarned) { mtWarned = true; toast(tr("translate.failed", { message: err.message }), { alert: true }); }
+        } finally { list.forEach((source) => mtPending.delete(`${mt.provider}|${from}|${target}|${source}`)); }
+      }
+    };
+    await Promise.all([worker(), worker(), worker()]);
+    if (!changed) return;
+    const all = Object.values(mtCache).reduce((a, b) => a + Object.keys(b).length, 0);
+    if (all > MT_CACHE_MAX) mtCache = {};
+    storage.set(MT_CACHE, mtCache);
+    if (data === forData) {
+      for (const [id, places] of wanted) {
+        const cut = id.indexOf("|"), hit = mtCache[`${mt.provider}|${id.slice(0, cut)}|${target}`]?.[id.slice(cut + 1)];
+        if (hit) for (const [o, k] of places) machine.set(o, k, hit);
+      }
+      paintHead();
+      render();
+    }
+  }
+
+  // The reader picks a provider; the choice and its key stay in this browser.
+  $("translate-provider").innerHTML = [["off", tr("translate.off")], ...Object.entries(content.PROVIDERS).map(([k, p]) => [k, p.name])]
+    .map(([k, name]) => `<option value="${k}">${esc(name)}</option>`).join("");
+  $("translate-url").placeholder = "https://libretranslate.com";
+  const fitTranslateForm = () => {
+    const p = content.PROVIDERS[$("translate-provider").value];
+    $("translate-key-row").hidden = !p || p.name === "MyMemory";
+    $("translate-url-row").hidden = $("translate-provider").value !== "libre";
+  };
+  $("translate-provider").onchange = fitTranslateForm;
+  $("translate-open").onclick = () => {
+    $("translate-provider").value = content.PROVIDERS[mt.provider] ? mt.provider : "off";
+    $("translate-key").value = mt.key || "";
+    $("translate-url").value = mt.url || "";
+    fitTranslateForm();
+    $("translate").showModal();
+  };
+  $("translate-cancel").onclick = () => $("translate").close();
+  $("translate-form").onsubmit = () => {
+    mt = { provider: $("translate-provider").value, key: $("translate-key").value.trim(), url: $("translate-url").value.trim() };
+    storage.set(MT_KEY, mt);
+    mtFailed.clear(); mtWarned = false;
+    if (data) { applyTexts(); paintHead(); render(); }
+  };
+
   // ---------------------------------------------------------------- rendering
   function show(json) {
     const problems = check(json);
@@ -357,16 +507,8 @@
       storage.set(ticksKey, local);
     } else local = {};
     collectLinked();
-    document.title = data.title || tr("page.title");
-    $("title").textContent = data.title || tr("page.title");
-    const when = data.updated ? new Date(data.updated + "T00:00:00") : null;
-    $("updated").textContent = [
-      when && !isNaN(when) ? tr("updated", { date: i18n.date(when) }) : "",
-      text(data.subtitle),
-    ].join(" ").trim();
-    const projectDocs = docEntries(data.docs);
-    $("project-docs").innerHTML = projectDocs.map(chip).join("");
-    $("project-docs").hidden = !projectDocs.length;
+    applyTexts();
+    paintHead();
     $("loading").hidden = true;
     $("load-error").hidden = true;
     $("app").hidden = false;
@@ -374,6 +516,20 @@
     render();
     syncUrl();
     if (firstShow && location.hash) jumpTo(location.hash.slice(1), false);
+  }
+
+  // The heading, its date line and the project's documents.
+  function paintHead() {
+    document.title = T(data, "title") || tr("page.title");
+    $("title").textContent = T(data, "title") || tr("page.title");
+    const when = data.updated ? new Date(data.updated + "T00:00:00") : null;
+    $("updated").textContent = [
+      when && !isNaN(when) ? tr("updated", { date: i18n.date(when) }) : "",
+      text(T(data, "subtitle")),
+    ].join(" ").trim();
+    const projectDocs = docEntries(data.docs);
+    $("project-docs").innerHTML = projectDocs.map(chip).join("");
+    $("project-docs").hidden = !projectDocs.length;
   }
 
   const barHtml = (share, cls, name, n) => {
@@ -402,9 +558,11 @@
   function matchesQuery(m, t) {
     const q = filters.query;
     if (!q) return { task: true, steps: new Set() };
+    // Both the text shown and the text as written match.
     const has = (v) => String(v || "").toLowerCase().includes(q);
-    const steps = new Set(t.steps.map((s, si) => (has(s.title) || has(reasonOf(s)) ? si : -1)).filter((x) => x >= 0));
-    const task = has(t.name) || has(m.name) || has(m.id) || steps.size > 0 || (t.questions || []).some((x) => has(x.q) || has(x.a)) || has(t.note)
+    const hasT = (o, k) => has(o[k]) || has(T(o, k));
+    const steps = new Set(t.steps.map((s, si) => (hasT(s, "title") || has(reasonOf(s)) || has(reasonShown(s)) ? si : -1)).filter((x) => x >= 0));
+    const task = hasT(t, "name") || hasT(m, "name") || has(m.id) || steps.size > 0 || (t.questions || []).some((x) => hasT(x, "q") || hasT(x, "a")) || hasT(t, "note")
       || has(typeOf(t) && typeLabel(typeOf(t))) || tagsOf(t).some((x) => has(x) || has("#" + x));
     return { task, steps };
   }
@@ -445,7 +603,7 @@
       ? [
         esc(tr("stats.steps", { done: c.steps.done, total: c.steps.total })),
         esc(tr("stats.milestones", { done: c.milestones.done, total: c.milestones.total })),
-        s.current && trHtml("stats.nowOn", { link: `<button class="link" data-jump="m-${s.current.mi}"><bdi>${esc(s.current.m.id)} ${esc(s.current.m.name)}</bdi></button>` }),
+        s.current && trHtml("stats.nowOn", { link: `<button class="link" data-jump="m-${s.current.mi}"><bdi>${esc(s.current.m.id)} ${esc(T(s.current.m, "name"))}</bdi></button>` }),
         openQs && `<button class="link" data-jump="attention">${esc(tr("stats.openQuestions", { count: openQs }))}</button>`,
       ].filter(Boolean).join(" · ")
       : esc(tr("stats.empty"));
@@ -494,13 +652,13 @@
       return `<section class="card ms ${ms.status === "done" ? "complete" : ""} ${anyVisible ? "" : "filtered-out"}" id="m-${ms.mi}" aria-labelledby="mt-${ms.mi}">
         <div class="ms-head">
           <div class="title-row">
-            <h2 class="ms-title" id="mt-${ms.mi}"><button type="button" class="toggle" data-toggle="m-${ms.mi}" aria-expanded="${open}" aria-controls="mb-${ms.mi}"><span class="chev" aria-hidden="true">▸</span>${esc(m.id)} ${esc(m.name)}</button></h2>
+            <h2 class="ms-title" id="mt-${ms.mi}"><button type="button" class="toggle" data-toggle="m-${ms.mi}" aria-expanded="${open}" aria-controls="mb-${ms.mi}"><span class="chev" aria-hidden="true">▸</span>${esc(m.id)} ${esc(T(m, "name"))}</button></h2>
             ${badge(ms.status)}${info(ms.reasons, "milestone")}
           </div>
-          <span class="ms-meta">${esc(i18n.percent(ms.percent))}${m.when ? " · " + esc(m.when) : ""}</span>
+          <span class="ms-meta">${esc(i18n.percent(ms.percent))}${m.when ? " · " + esc(T(m, "when")) : ""}</span>
         </div>
-        ${barHtml(ms.share, "", `${m.id} ${m.name}`)}
-        ${text(m.exit) ? `<p class="exit">${trHtml("ms.doneWhen", { exit: `<bdi>${esc(m.exit)}</bdi>` })}</p>` : ""}
+        ${barHtml(ms.share, "", `${m.id} ${T(m, "name")}`)}
+        ${text(m.exit) ? `<p class="exit">${trHtml("ms.doneWhen", { exit: `<bdi>${esc(T(m, "exit"))}</bdi>` })}</p>` : ""}
         ${chips(m.docs, tr("docs.of", { name: m.id }))}
         <div class="ms-body" id="mb-${ms.mi}" ${open ? "" : "hidden"}>
           ${tasks.length ? tasks.map((t) => renderTask(ms, t.x, t.q, t.hidden)).join("") : `<p class="empty">${esc(tr("empty.tasks"))}</p>`}
@@ -545,13 +703,13 @@
     const qBadge = x.questions.length
       ? `<span class="badge q ${x.open ? "open" : ""}"><span class="visually-hidden">${esc(tr("questions.label"))} </span><span aria-hidden="true">?</span> ${esc(x.open ? tr("questions.open", { count: x.open }) : i18n.num(x.questions.length))}</span>` : "";
     const steps = t.steps.map((st, si) => {
-      const status = statusOf(st), reason = reasonOf(st), pos = `${ms.mi}.${x.ti}.${si}`;
+      const status = statusOf(st), reason = reasonShown(st), pos = `${ms.mi}.${x.ti}.${si}`, title = T(st, "title");
       return `<li class="s-${status} ${q.steps.has(si) ? "match" : ""}">
-        <input type="checkbox" data-step="${pos}" ${status === "done" ? "checked" : ""} aria-label="${esc(st.title)}">
-        <span class="step-text"><span class="step-title">${esc(st.title)}</span>${status !== "done" && status !== "todo" ? badge(status) : ""}${status === "blocked" ? info([text(reason) || tr("reason.none")], "step") : ""}</span>
+        <input type="checkbox" data-step="${pos}" ${status === "done" ? "checked" : ""} aria-label="${esc(title)}">
+        <span class="step-text"><span class="step-title">${esc(title)}</span>${status !== "done" && status !== "todo" ? badge(status) : ""}${status === "blocked" ? info([text(reason) || tr("reason.none")], "step") : ""}</span>
         ${stepBar(status)}
         <span class="step-menu">
-          <button type="button" data-menu="${pos}" aria-expanded="false" aria-controls="menu-${pos}" aria-label="${esc(tr("step.menu", { title: st.title, status: statusLabel(status) }))}">⋯</button>
+          <button type="button" data-menu="${pos}" aria-expanded="false" aria-controls="menu-${pos}" aria-label="${esc(tr("step.menu", { title, status: statusLabel(status) }))}">⋯</button>
           <span class="menu" id="menu-${pos}" role="group" aria-label="${esc(tr("step.statusGroup"))}"></span>
         </span>
       </li>`;
@@ -567,30 +725,30 @@
               <textarea id="a-${key}-${qi}" name="answer" maxlength="4000" placeholder="${esc(tr("answer.placeholder"))}" required>${esc(value)}</textarea>
               <div class="row">${cancel}<button class="primary" type="submit">${esc(button)}</button></div></form>`;
         const body = !pending
-          ? mode !== "api" ? `<p class="answer">${esc(qq.a)}</p>`
+          ? mode !== "api" ? `<p class="answer">${esc(T(qq, "a"))}</p>`
             : isEditing ? form(qq.a, tr("answer.update"))
-            : `<p class="answer">${esc(qq.a)}</p><div class="row"><button type="button" class="link" data-edit-answer="${pos}">${esc(tr("answer.edit"))}</button></div>`
-          : byAgent ? `<p class="no-answer">${esc(tr("answer.agent"))}</p>${mode === "api" ? form(qq.a, tr("answer.confirm")) : `<p class="answer">${esc(qq.a)}</p>`}`
+            : `<p class="answer">${esc(T(qq, "a"))}</p><div class="row"><button type="button" class="link" data-edit-answer="${pos}">${esc(tr("answer.edit"))}</button></div>`
+          : byAgent ? `<p class="no-answer">${esc(tr("answer.agent"))}</p>${mode === "api" ? form(qq.a, tr("answer.confirm")) : `<p class="answer">${esc(T(qq, "a"))}</p>`}`
           : mode === "api" ? form("", tr("answer.save"))
           : `<p class="no-answer">${esc(tr("answer.none"))}</p>`;
         const badgeText = !pending ? "" : byAgent ? tr("answer.badgeConfirm") : tr("answer.badgeNeeds");
         return `<details class="qa" ${pending || isEditing ? "open" : ""}>
-        <summary><span class="q-mark" aria-hidden="true">${esc(tr("q.mark"))}</span><span>${esc(qq.q)}</span>${badgeText ? `<span class="badge review">${esc(badgeText)}</span>` : ""}</summary>
+        <summary><span class="q-mark" aria-hidden="true">${esc(tr("q.mark"))}</span><span>${esc(T(qq, "q"))}</span>${badgeText ? `<span class="badge review">${esc(badgeText)}</span>` : ""}</summary>
         <div class="qa-body">${body}</div>
       </details>`;
       }).join("")}</details>` : "";
     return `<div class="task ${x.status === "done" ? "complete" : ""} ${q.task && filters.query ? "match" : ""} ${hidden ? "filtered-out" : ""}" id="t-${key}">
       <div class="task-head">
         <div class="title-row">
-          <h3 class="task-title"><button type="button" class="toggle" data-toggle="t-${key}" aria-expanded="${Boolean(open)}" aria-controls="tb-${key}"><span class="chev" aria-hidden="true">▸</span><span class="label">${esc(t.name)}</span></button></h3>
+          <h3 class="task-title"><button type="button" class="toggle" data-toggle="t-${key}" aria-expanded="${Boolean(open)}" aria-controls="tb-${key}"><span class="chev" aria-hidden="true">▸</span><span class="label">${esc(T(t, "name"))}</span></button></h3>
           ${badge(x.status)}${info(x.reasons, "task")}${qBadge}${labelsHtml(t)}
         </div>
-        <span class="task-progress">${barHtml(x.share, "task-bar", t.name, x.n)}<span class="task-meta">${esc(i18n.num(x.done))}/${esc(i18n.num(t.steps.length))} · ${esc(i18n.percent(x.percent))}</span></span>
+        <span class="task-progress">${barHtml(x.share, "task-bar", T(t, "name"), x.n)}<span class="task-meta">${esc(i18n.num(x.done))}/${esc(i18n.num(t.steps.length))} · ${esc(i18n.percent(x.percent))}</span></span>
       </div>
-      ${chips(t.docs, tr("docs.of", { name: t.name }))}
+      ${chips(t.docs, tr("docs.of", { name: T(t, "name") }))}
       <div class="task-body" id="tb-${key}" ${open ? "" : "hidden"}>
         ${t.steps.length ? `<ul class="steps">${steps}</ul>` : `<p class="empty">${esc(tr("empty.steps"))}</p>`}
-        ${text(t.note) ? `<p class="note">${esc(t.note)}</p>` : ""}
+        ${text(t.note) ? `<p class="note">${esc(T(t, "note"))}</p>` : ""}
         ${qa}
       </div>
     </div>`;
@@ -599,13 +757,13 @@
   function renderAttention(s) {
     const blocked = [], review = [], questions = [];
     for (const ms of s.milestones) {
-      if (text(ms.m.blocked)) blocked.push(`<li><a href="#m-${ms.mi}" data-jump="m-${ms.mi}">${esc(ms.m.id)} ${esc(ms.m.name)}</a> <span class="why">— ${esc(ms.m.blocked)}</span></li>`);
+      if (text(ms.m.blocked)) blocked.push(`<li><a href="#m-${ms.mi}" data-jump="m-${ms.mi}">${esc(ms.m.id)} ${esc(T(ms.m, "name"))}</a> <span class="why">— ${esc(T(ms.m, "blocked"))}</span></li>`);
       for (const x of ms.tasks) {
         const key = `${ms.mi}.${x.ti}`;
-        const where = `${esc(ms.m.id)} › ${esc(x.t.name)}`;
+        const where = `${esc(ms.m.id)} › ${esc(T(x.t, "name"))}`;
         if (x.status === "blocked") blocked.push(`<li><a href="#t-${key}" data-jump="t-${key}">${where}</a> <span class="why">— ${esc(x.reasons.join("; "))}</span></li>`);
-        x.t.steps.forEach((st) => { if (statusOf(st) === "review") review.push(`<li><a href="#t-${key}" data-jump="t-${key}">${where} › ${esc(st.title)}</a></li>`); });
-        x.questions.forEach((qq) => { if (!text(qq.a) || qq.by === "agent") questions.push(`<li><a href="#t-${key}" data-jump="t-${key}">${where}</a>: ${esc(qq.q)}${text(qq.a) ? ` <span class="why">${esc(tr("attention.confirmAgent"))}</span>` : ""}</li>`); });
+        x.t.steps.forEach((st) => { if (statusOf(st) === "review") review.push(`<li><a href="#t-${key}" data-jump="t-${key}">${where} › ${esc(T(st, "title"))}</a></li>`); });
+        x.questions.forEach((qq) => { if (!text(qq.a) || qq.by === "agent") questions.push(`<li><a href="#t-${key}" data-jump="t-${key}">${where}</a>: ${esc(T(qq, "q"))}${text(qq.a) ? ` <span class="why">${esc(tr("attention.confirmAgent"))}</span>` : ""}</li>`); });
       }
     }
     const state = attentionState();
@@ -724,7 +882,7 @@
       else local[step.key] = status === "blocked" ? { status, reason } : { status };
       storage.set(ticksKey, local);
       render();
-      return toast(tr("toast.status", { title: step.title, status: statusLabel(status) }), { undo });
+      return toast(tr("toast.status", { title: T(step, "title"), status: statusLabel(status) }), { undo });
     }
     const li = container.querySelector(`[data-step="${pos}"]`)?.closest("li");
     li?.classList.add("saving");
@@ -733,7 +891,7 @@
         method: "PATCH",
         body: JSON.stringify({ milestone: mi, task: ti, step: si, title: step.title, status, ...(status === "blocked" ? { reason } : {}) }),
       }));
-      toast(tr("toast.status", { title: step.title, status: statusLabel(status) }), { undo });
+      toast(tr("toast.status", { title: T(step, "title"), status: statusLabel(status) }), { undo });
     } catch (err) {
       toast(err.status === 409 ? tr("toast.conflict") : tr("toast.notSaved", { message: err.message }), { alert: err.status !== 409 });
       loadProject(projectId);

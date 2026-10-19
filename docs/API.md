@@ -28,6 +28,7 @@ See [ADR 0001](adr/0001-rename-to-doczi.md).
 ```json
 {
   "title": "Shop: where we are",
+  "language": "en",
   "updated": "2026-09-30",
   "docs": [{ "title": "Requirements", "path": "docs/SRS.md" }],
   "milestones": [
@@ -72,6 +73,26 @@ from their tasks the same way. Percentages are never stored.
 style), must stay inside the project and may not contain `:`. Only `.md`, `.markdown` and `.txt` files open in the
 reader. Schema: `templates/progress/progress.schema.json`.
 
+`language` is the code of the language the file is written in (`fa`, `de`, …; English when
+missing).
+
+### Translations
+
+A translation of the progress file sits next to it with the language code before `.json`:
+`milestones.json` → `milestones.en.json`, `milestones.de.json`. It has the same layout and
+lends only its text: statuses, weights, types, tags and document paths always come from the
+progress file itself, and every write goes to the progress file. Milestones match by `id`;
+tasks, steps, questions and documents match by position, and only where the translation has as
+many as the progress file, so a translation that has fallen behind shows those parts as written.
+
+The dashboard shows the reader's interface language when a translation has it, else English,
+else the file as written. Text that no file has in that language can be machine translated by a
+service the reader picks under **Translate**: MyMemory (free, no key), Google Cloud Translation
+(an API key) or LibreTranslate (a server address, `https://libretranslate.com` or one of your
+own on port 5000, and an optional key). The choice, the key and the translations stay in that
+browser. The text is sent to the service, so leave it off for a project whose plan is
+confidential.
+
 A task may carry a `type` and `tags`. Neither changes progress.
 
 - `type` is one of `feature`, `bug`, `issue`, `refinement`, `redesign`, `chore`,
@@ -115,10 +136,10 @@ suite (`test/http-contract.test.mjs`) against each runtime that is installed.
 - Writes need `Content-Type: application/json` (`415` otherwise); when an `Origin` header is
   present it must be exactly `http://127.0.0.1:<port>` or `http://localhost:<port>` (`403`). Bodies over
   64 KiB are refused (`413`).
-- Serves only the dashboard files (`index.html`, `app.js`, `markdown.js`, `theme.js`, `style.css`);
-  everything else is `404`.
-- Reads and writes only registered projects' progress files and the documents those files
-  link. Every path must resolve inside the project after following symlinks; a symlinked
+- Serves only the dashboard files (`index.html`, `app.js`, `markdown.js`, `export.js`,
+  `content.js`, `theme.js`, `style.css`, `i18n.js` and `i18n/<code>.js`); everything else is `404`.
+- Reads and writes only registered projects' progress files, reads their translations and the
+  documents those files link. Every path must resolve inside the project after following symlinks; a symlinked
   progress file is refused.
 - Every change holds the progress file's lock for its whole read → change → write: an
   exclusive `<file>.lock` holding a random token, created by whichever writer comes first (CLI,
@@ -128,7 +149,9 @@ suite (`test/http-contract.test.mjs`) against each runtime that is installed.
 - Writes are atomic (an exclusive, randomly named temporary file, then rename), keep one step
   per line, and set `updated` to today.
 - Every response has `Cache-Control: no-store` and `X-Content-Type-Options: nosniff`; pages
-  get `Content-Security-Policy: default-src 'self'`.
+  get `Content-Security-Policy: default-src 'self'`, with `connect-src` adding only the machine
+  translation services (`api.mymemory.translated.net`, `translation.googleapis.com`,
+  `libretranslate.com`, and `localhost:5000` or `127.0.0.1:5000` for a LibreTranslate of your own).
 - Errors are JSON: `{ "error": "Human-readable message." }`; server errors do not include
   paths or stack traces.
 
@@ -140,6 +163,11 @@ suite (`test/http-contract.test.mjs`) against each runtime that is installed.
 
 `GET /api/projects/{id}/progress` → `200` the progress file as stored · `404` unknown project
 or no progress file.
+
+`GET /api/projects/{id}/progress/{lang}` → `200` the translation next to the progress file
+(`milestones.<lang>.json`) as stored · `404` unknown project, no progress file, no such
+translation, a `lang` that is not two or three lower-case letters, or a translation that is a
+symlink or leaves the project · `413` over 2 MiB.
 
 `GET /api/projects/{id}/docs?path=docs/SRS.md` → `200 { "path": "docs/SRS.md", "text": "…" }`
 · `404` when the path is not linked from the progress file, is not `.md`/`.markdown`/`.txt`,

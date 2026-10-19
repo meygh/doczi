@@ -20,6 +20,11 @@
       "type": "string",
       "description": "One line under the heading."
     },
+    "language": {
+      "type": "string",
+      "pattern": "^[a-z]{2,3}$",
+      "description": "The language the file is written in; English when missing. Translations sit next to the file as <name>.<language>.json."
+    },
     "updated": {
       "type": "string",
       "format": "date",

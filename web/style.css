@@ -322,3 +322,10 @@ footer { color: var(--muted); font-size: 13px; margin-top: 28px; }
    right-to-left page, or Persian inside a left-to-right one, keeps its punctuation in place. */
 #title, #updated, .ms-title, .task-title .label, .step-title, .note, .why, .attention li,
 .qa summary > span, .answer, .pop li, .chip, #reader-path { unicode-bidi: plaintext; }
+
+dialog#translate { width: min(460px, 100vw - 24px); padding: 18px; border: 1px solid var(--line); border-radius: 12px; background: var(--card); color: var(--text); }
+dialog#translate::backdrop { background: rgba(10, 12, 16, .45); }
+#translate-form { display: grid; gap: 12px; }
+#translate-form h2 { font-size: 17px; }
+#translate-form label { display: grid; gap: 4px; font-size: 13.5px; }
+#translate-form .row { display: flex; justify-content: flex-end; gap: 8px; }

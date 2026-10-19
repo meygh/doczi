@@ -26,6 +26,7 @@ const FILES = {
   "/app.js": ["app.js", "text/javascript; charset=utf-8"],
   "/markdown.js": ["markdown.js", "text/javascript; charset=utf-8"],
   "/export.js": ["export.js", "text/javascript; charset=utf-8"],
+  "/content.js": ["content.js", "text/javascript; charset=utf-8"],
   "/i18n.js": ["i18n.js", "text/javascript; charset=utf-8"],
   "/i18n/en.js": ["i18n/en.js", "text/javascript; charset=utf-8"],
   "/i18n/fa.js": ["i18n/fa.js", "text/javascript; charset=utf-8"],
@@ -36,7 +37,7 @@ const FILES = {
   "/theme.js": ["theme.js", "text/javascript; charset=utf-8"],
   "/style.css": ["style.css", "text/css; charset=utf-8"],
 };
-const CSP = "default-src 'self'; img-src 'self' data:; base-uri 'none'; form-action 'none'; frame-ancestors 'none'";
+const CSP = "default-src 'self'; connect-src 'self' https://api.mymemory.translated.net https://translation.googleapis.com https://libretranslate.com http://localhost:5000 http://127.0.0.1:5000; img-src 'self' data:; base-uri 'none'; form-action 'none'; frame-ancestors 'none'";
 const allowedHosts = new Set([`127.0.0.1:${PORT}`, `localhost:${PORT}`]);
 const allowedOrigins = new Set([...allowedHosts].map((h) => `http://${h}`));
 const LOOPBACK = new Set(["127.0.0.1", "::1", "::ffff:127.0.0.1"]);
@@ -137,6 +138,19 @@ async function patchQuestion(req, id) {
   });
 }
 
+// A translation of the progress file sits next to it: milestones.json → milestones.<lang>.json.
+function getTranslation(id, lang) {
+  const project = projectOrThrow(id);
+  const file = project.progressPath.replace(/(\.json)?$/i, `.${lang}.json`);
+  const missing = new HttpError(404, `There is no "${lang}" translation of this progress file.`);
+  try { assertInside(project.root, file); } catch { throw missing; }
+  let stat;
+  try { stat = fs.statSync(file); } catch { throw missing; }
+  if (!stat.isFile()) throw missing;
+  if (stat.size > MAX_DOC) throw new HttpError(413, "That translation is larger than 2 MiB.");
+  return fs.readFileSync(file, "utf8");
+}
+
 function getDoc(id, wanted) {
   const notFound = new HttpError(404, "That document is not linked from this project's progress file.");
   const rel = String(wanted || "").split("#")[0].trim().replace(/\\/g, "/").replace(/^\.\//, "");
@@ -173,6 +187,9 @@ const server = http.createServer(async (req, res) => {
     }
     if (req.method === "GET" && (m = route.match(/^\/api\/projects\/([^/]+)\/progress$/))) {
       return send(res, 200, fs.readFileSync(projectOrThrow(decodeId(m[1])).progressPath, "utf8"));
+    }
+    if (req.method === "GET" && (m = route.match(/^\/api\/projects\/([^/]+)\/progress\/([a-z]{2,3})$/))) {
+      return send(res, 200, getTranslation(decodeId(m[1]), m[2]));
     }
     if (req.method === "GET" && (m = route.match(/^\/api\/projects\/([^/]+)\/docs$/))) {
       return send(res, 200, getDoc(decodeId(m[1]), url.searchParams.get("path")));

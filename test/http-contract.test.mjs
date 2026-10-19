@@ -77,6 +77,9 @@ function makeFixture() {
       }],
     }],
   });
+  fs.writeFileSync(path.join(demo, "docs/progress/milestones.de.json"), JSON.stringify({ title: "Demo auf Deutsch", milestones: [{ id: "M0", name: "Anfang", tasks: [] }] }));
+  fs.writeFileSync(path.join(demo, "docs/progress/milestones.es.json"), "x".repeat(2 * 1024 * 1024 + 10));
+  try { fs.symlinkSync(path.join(demo, "docs", "secret.md"), path.join(demo, "docs/progress/milestones.tr.json")); } catch { /* no symlinks here */ }
   fs.writeFileSync(path.join(demo, "docs", "SRS.md"), "# Requirements\n\n## Goals\n\nShip it.\n");
   fs.writeFileSync(path.join(demo, "docs", "plan.txt"), "Plan text");
   fs.writeFileSync(path.join(demo, "docs", "secret.md"), "not listed");
@@ -141,6 +144,22 @@ for (const rt of RUNTIMES) {
         const bad = await request(port, "GET", `/api/projects/${id}/progress`);
         assert.equal(bad.status, 404, id);
         assert.equal(typeof bad.json.error, "string");
+      }
+    });
+
+    test("a translation of the progress file comes from next to it; others are 404", async () => {
+      const r = await request(port, "GET", "/api/projects/demo/progress/de");
+      assert.equal(r.status, 200, r.text);
+      assert.equal(r.json.title, "Demo auf Deutsch");
+      assert.equal(r.headers["cache-control"], "no-store");
+      assert.equal((await request(port, "GET", "/api/projects/demo/progress/es")).status, 413);
+      for (const url of ["/api/projects/demo/progress/fr", "/api/projects/demo/progress/tr", "/api/projects/empty/progress/de", "/api/projects/evil/progress/de", "/api/projects/nope/progress/de"]) {
+        const bad = await request(port, "GET", url);
+        assert.equal(bad.status, 404, url);
+        assert.equal(typeof bad.json.error, "string", url);
+      }
+      for (const lang of ["DE", "deutsch", "..", "%2e%2e", "de.json", "d"]) {
+        assert.equal((await request(port, "GET", `/api/projects/demo/progress/${lang}`)).status, 404, lang);
       }
     });
 
@@ -262,6 +281,8 @@ for (const rt of RUNTIMES) {
       assert.match((await request(port, "GET", "/app.js")).headers["content-type"], /javascript/);
       assert.match((await request(port, "GET", "/markdown.js")).headers["content-type"], /javascript/);
       assert.match((await request(port, "GET", "/export.js")).headers["content-type"], /javascript/);
+      assert.match((await request(port, "GET", "/content.js")).headers["content-type"], /javascript/);
+      assert.match(page.headers["content-security-policy"], /connect-src 'self' https:\/\/api\.mymemory\.translated\.net/);
       for (const f of ["/i18n.js", "/i18n/en.js", "/i18n/fa.js", "/i18n/ar.js", "/i18n/de.js", "/i18n/es.js", "/i18n/tr.js"]) assert.match((await request(port, "GET", f)).headers["content-type"], /javascript/, f);
       assert.equal((await request(port, "GET", "/i18n/xx.js")).status, 404);
       const bad = await request(port, "GET", "/api/projects/%E0%A4%A/progress");
