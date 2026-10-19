@@ -325,7 +325,16 @@ footer { color: var(--muted); font-size: 13px; margin-top: 28px; }
 
 dialog#translate { width: min(460px, 100vw - 24px); padding: 18px; border: 1px solid var(--line); border-radius: 12px; background: var(--card); color: var(--text); }
 dialog#translate::backdrop { background: rgba(10, 12, 16, .45); }
-#translate-form { display: grid; gap: 12px; }
-#translate-form h2 { font-size: 17px; }
-#translate-form label { display: grid; gap: 4px; font-size: 13.5px; }
-#translate-form .row { display: flex; justify-content: flex-end; gap: 8px; }
+.translate-body, #engine-form { display: grid; gap: 12px; }
+.translate-body h2 { font-size: 17px; }
+.translate-body h3 { font-size: 14px; }
+.translate-body label { display: grid; gap: 4px; font-size: 13.5px; }
+.translate-body input, .translate-body select { padding: 6px 8px; border: 1px solid var(--line); border-radius: 8px; background: var(--raised); color: var(--text); font: inherit; }
+.translate-body .row { display: flex; justify-content: flex-end; gap: 8px; }
+.engines { list-style: none; margin: 0; padding: 0; display: grid; gap: 6px; }
+.engines li { display: flex; align-items: center; gap: 10px; padding: 8px 10px; border: 1px solid var(--line); border-radius: 8px; }
+.engines li.off .engine-name { color: var(--muted); }
+.engines .engine-name { flex: 1; display: grid; gap: 2px; min-width: 0; }
+.engines .engine-detail { font-size: 12px; color: var(--muted); overflow-wrap: anywhere; }
+.engines label { display: flex; align-items: center; gap: 6px; font-size: 13px; }
+#engine-form { border-top: 1px solid var(--line); padding-top: 12px; }

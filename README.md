@@ -107,8 +107,10 @@ flowchart LR
 - **The plan in the reader's language.** Keep translations next to the progress file
   (`milestones.en.json`, `milestones.de.json`, …) and set `language` in the progress file to the
   language it is written in. The page shows the reader's language, else English, else the file
-  as written; statuses always come from the progress file. Under **Translate** a reader can have
-  the rest machine translated by MyMemory, Google Cloud Translation or LibreTranslate. See
+  as written; statuses always come from the progress file. Under **Translate** a reader keeps a list of
+  machine translation services (MyMemory, Google Cloud Translation, LibreTranslate), switches
+  each on or off, and the first active one translates the rest, the next one taking over when
+  it fails. See
   [Translations](docs/API.md#translations).
 
 **Optional, pinned upstream plugins** in the same marketplace:

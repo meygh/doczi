@@ -86,11 +86,12 @@ tasks, steps, questions and documents match by position, and only where the tran
 many as the progress file, so a translation that has fallen behind shows those parts as written.
 
 The dashboard shows the reader's interface language when a translation has it, else English,
-else the file as written. Text that no file has in that language can be machine translated by a
-service the reader picks under **Translate**: MyMemory (free, no key), Google Cloud Translation
-(an API key) or LibreTranslate (a server address, `https://libretranslate.com` or one of your
-own on port 5000, and an optional key). The choice, the key and the translations stay in that
-browser. The text is sent to the service, so leave it off for a project whose plan is
+else the file as written. Text that no file has in that language can be machine translated.
+Under **Translate** the reader keeps a list of services: adds, removes, and switches each on or
+off. The first active service translates; when it fails, the next active one tries. Services:
+MyMemory (free, no key), Google Cloud Translation (an API key) and LibreTranslate (a server
+address, `https://libretranslate.com` or one of your own on port 5000, and an optional key).
+The list, the keys and the translations stay in that browser. The text is sent to the service, so leave it off for a project whose plan is
 confidential.
 
 A task may carry a `type` and `tags`. Neither changes progress.

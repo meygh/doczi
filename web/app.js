@@ -369,9 +369,19 @@
   }
 
   // ---------------------------------------------------------------- the file's text in the reader's language
-  const MT_KEY = "doczi.translate", MT_CACHE = "doczi.translate.cache", MT_CACHE_MAX = 5000;
-  let mt = Object.assign({ provider: "off", key: "", url: "" }, storage.get(MT_KEY, {}));
-  let mtCache = storage.get(MT_CACHE, {});        // "provider|from|to" → { text: translation }
+  // Machine translation services the reader manages: tried in order, active ones only.
+  const MT_KEY = "doczi.translate", MT_CACHE = "doczi.translations", MT_CACHE_MAX = 5000;
+  const newId = () => Math.random().toString(36).slice(2, 10);
+  function loadEngines() {
+    const saved = storage.get(MT_KEY, {});
+    if (Array.isArray(saved.engines)) return saved.engines.filter((e) => e && content.PROVIDERS[e.provider]);
+    // One service picked before services could be listed.
+    return content.PROVIDERS[saved.provider] ? [{ id: newId(), provider: saved.provider, key: saved.key || "", url: saved.url || "", active: true }] : [];
+  }
+  let engines = loadEngines();
+  const saveEngines = () => storage.set(MT_KEY, { engines });
+  const usable = (e) => { const p = content.PROVIDERS[e.provider]; return Boolean(p && e.active && !(p.needs && !text(e[p.needs]))); };
+  let mtCache = storage.get(MT_CACHE, {});        // "from|to" → { text: translation }
   const mtPending = new Set(), mtFailed = new Set();
   let mtWarned = false;
   const languageName = (code) => { try { return new Intl.DisplayNames([i18n.lang], { type: "language" }).of(code) || code; } catch { return code; } };
@@ -381,69 +391,88 @@
     texts = content.overlay(data, translation?.json);
     machine = content.lookup();
     const target = i18n.lang, base = baseLang(data);
-    const provider = content.PROVIDERS[mt.provider];
-    const live = provider && !(provider.needs && !text(mt[provider.needs])) && translation?.lang !== target && base !== target;
+    const chain = engines.filter(usable);
+    const live = chain.length > 0 && translation?.lang !== target && base !== target;
     const note = [];
     if (base !== target) {
       if (translation?.lang === target) note.push(tr("content.file", { language: languageName(target) }));
       else if (translation) note.push(tr("content.fallback", { wanted: languageName(target), language: languageName(translation.lang) }));
       else note.push(tr("content.original", { wanted: languageName(target) }));
     }
-    if (live) note.push(tr("content.machine", { provider: provider.name }));
+    if (live) note.push(tr("content.machine", { provider: i18n.list([...new Set(chain.map((e) => content.PROVIDERS[e.provider].name))], "disjunction") }));
     $("content-note").textContent = note.join(" ");
     $("content-note").hidden = !note.length;
-    if (live) machineTranslate(provider, target);
+    if (live) machineTranslate(chain, target);
   }
 
-  // Text no file has in the reader's language: from the cache now, from the provider later.
-  function machineTranslate(provider, target) {
+  // Text no file has in the reader's language: from the cache now, from the services later.
+  function machineTranslate(chain, target) {
+    const max = Math.max(...chain.map((e) => content.PROVIDERS[e.provider].max));
     const wanted = new Map(); // "from|text" → [[object, field]]
     for (const [o, k] of content.fields(data)) {
       const from = texts.has(o, k) ? translation.lang : baseLang(data);
       const source = texts.text(o, k);
-      if (from === target || source.length > provider.max) continue;
-      const bucket = `${mt.provider}|${from}|${target}`;
-      const hit = mtCache[bucket]?.[source];
+      if (from === target || source.length > max) continue;
+      const hit = mtCache[`${from}|${target}`]?.[source];
       if (hit) { machine.set(o, k, hit); continue; }
-      if (mtFailed.has(`${bucket}|${source}`)) continue;
+      if (mtFailed.has(`${from}|${target}|${source}`)) continue;
       const id = `${from}|${source}`;
       if (!wanted.has(id)) wanted.set(id, []);
       wanted.get(id).push([o, k]);
     }
-    if (wanted.size) fetchTranslations(provider, target, wanted);
+    if (wanted.size) fetchTranslations(chain, target, wanted);
   }
 
-  async function fetchTranslations(provider, target, wanted) {
+  // One batch through the services in order: the first that answers wins.
+  async function translateBatch(chain, list, from, target) {
+    let lastError = null;
+    for (const engine of chain) {
+      const provider = content.PROVIDERS[engine.provider];
+      if (list.some((x) => x.length > provider.max)) continue;
+      try {
+        const out = [];
+        for (let i = 0; i < list.length; i += provider.batch) {
+          const part = list.slice(i, i + provider.batch);
+          const req = provider.request(part, from, target, engine);
+          const res = await fetch(req.url, req.body ? { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(req.body) } : {});
+          if (!res.ok) throw new Error(`${provider.name}: ${res.status} ${res.statusText}`);
+          const got = provider.read(await res.json());
+          if (part.some((_, j) => typeof got[j] !== "string" || !got[j].trim())) throw new Error(`${provider.name}: ${tr("translate.noAnswer")}`);
+          out.push(...got.slice(0, part.length));
+        }
+        return out;
+      } catch (err) { lastError = err; }
+    }
+    throw lastError || new Error(tr("translate.noAnswer"));
+  }
+
+  async function fetchTranslations(chain, target, wanted) {
     const forData = data;
     const byFrom = new Map();
     for (const id of wanted.keys()) {
       const cut = id.indexOf("|"), from = id.slice(0, cut), source = id.slice(cut + 1);
-      const key = `${mt.provider}|${from}|${target}|${source}`;
+      const key = `${from}|${target}|${source}`;
       if (mtPending.has(key)) continue;
       mtPending.add(key);
       if (!byFrom.has(from)) byFrom.set(from, []);
       byFrom.get(from).push(source);
     }
+    // Small jobs, so one text a service refuses costs only its own batch.
     const jobs = [];
-    for (const [from, list] of byFrom) for (let i = 0; i < list.length; i += provider.batch) jobs.push([from, list.slice(i, i + provider.batch)]);
+    for (const [from, list] of byFrom) for (let i = 0; i < list.length; i += 20) jobs.push([from, list.slice(i, i + 20)]);
     let next = 0, changed = false;
     const worker = async () => {
       while (next < jobs.length) {
         const [from, list] = jobs[next++];
-        const bucket = `${mt.provider}|${from}|${target}`;
+        const bucket = `${from}|${target}`;
         try {
-          const req = provider.request(list, from, target, mt);
-          const res = await fetch(req.url, req.body ? { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(req.body) } : {});
-          if (!res.ok) throw new Error(`${res.status} ${res.statusText}`);
-          const out = provider.read(await res.json());
-          list.forEach((source, i) => {
-            if (typeof out[i] === "string" && out[i].trim()) { (mtCache[bucket] ||= {})[source] = out[i]; changed = true; }
-            else mtFailed.add(`${bucket}|${source}`);
-          });
+          const out = await translateBatch(chain, list, from, target);
+          list.forEach((source, i) => { (mtCache[bucket] ||= {})[source] = out[i]; });
+          changed = true;
         } catch (err) {
           list.forEach((source) => mtFailed.add(`${bucket}|${source}`));
           if (!mtWarned) { mtWarned = true; toast(tr("translate.failed", { message: err.message }), { alert: true }); }
-        } finally { list.forEach((source) => mtPending.delete(`${mt.provider}|${from}|${target}|${source}`)); }
+        } finally { list.forEach((source) => mtPending.delete(`${bucket}|${source}`)); }
       }
     };
     await Promise.all([worker(), worker(), worker()]);
@@ -453,7 +482,7 @@
     storage.set(MT_CACHE, mtCache);
     if (data === forData) {
       for (const [id, places] of wanted) {
-        const cut = id.indexOf("|"), hit = mtCache[`${mt.provider}|${id.slice(0, cut)}|${target}`]?.[id.slice(cut + 1)];
+        const cut = id.indexOf("|"), hit = mtCache[`${id.slice(0, cut)}|${target}`]?.[id.slice(cut + 1)];
         if (hit) for (const [o, k] of places) machine.set(o, k, hit);
       }
       paintHead();
@@ -461,30 +490,63 @@
     }
   }
 
-  // The reader picks a provider; the choice and its key stay in this browser.
-  $("translate-provider").innerHTML = [["off", tr("translate.off")], ...Object.entries(content.PROVIDERS).map(([k, p]) => [k, p.name])]
-    .map(([k, name]) => `<option value="${k}">${esc(name)}</option>`).join("");
-  $("translate-url").placeholder = "https://libretranslate.com";
-  const fitTranslateForm = () => {
-    const p = content.PROVIDERS[$("translate-provider").value];
-    $("translate-key-row").hidden = !p || p.name === "MyMemory";
-    $("translate-url-row").hidden = $("translate-provider").value !== "libre";
+  // The services screen: add, remove, switch on and off. Every change applies at once.
+  const engineDetail = (e) => {
+    const p = content.PROVIDERS[e.provider];
+    if (e.provider === "libre") return e.url || "https://libretranslate.com";
+    if (p.needs === "key") return e.key ? tr("translate.keyEnds", { end: e.key.slice(-4) }) : tr("translate.keyMissing");
+    return tr("translate.free");
   };
-  $("translate-provider").onchange = fitTranslateForm;
-  $("translate-open").onclick = () => {
-    $("translate-provider").value = content.PROVIDERS[mt.provider] ? mt.provider : "off";
-    $("translate-key").value = mt.key || "";
-    $("translate-url").value = mt.url || "";
-    fitTranslateForm();
-    $("translate").showModal();
-  };
-  $("translate-cancel").onclick = () => $("translate").close();
-  $("translate-form").onsubmit = () => {
-    mt = { provider: $("translate-provider").value, key: $("translate-key").value.trim(), url: $("translate-url").value.trim() };
-    storage.set(MT_KEY, mt);
+  function renderEngines() {
+    $("engines").innerHTML = engines.map((e) => {
+      const name = content.PROVIDERS[e.provider].name;
+      return `<li class="${e.active ? "" : "off"}"><span class="engine-name"><strong>${esc(name)}</strong><span class="engine-detail">${esc(engineDetail(e))}</span></span>
+        <label><input type="checkbox" data-engine-active="${esc(e.id)}" ${e.active ? "checked" : ""}><span>${esc(tr("translate.active"))}</span></label>
+        <button type="button" data-engine-remove="${esc(e.id)}" aria-label="${esc(tr("translate.removeFor", { name }))}">${esc(tr("translate.remove"))}</button></li>`;
+    }).join("");
+    $("engines-empty").hidden = engines.length > 0;
+  }
+  function enginesChanged() {
+    saveEngines();
     mtFailed.clear(); mtWarned = false;
+    renderEngines();
     if (data) { applyTexts(); paintHead(); render(); }
+  }
+  $("engine-provider").innerHTML = Object.entries(content.PROVIDERS).map(([k, p]) => `<option value="${k}">${esc(p.name)}</option>`).join("");
+  $("engine-url").placeholder = "https://libretranslate.com";
+  const fitEngineForm = () => {
+    const k = $("engine-provider").value;
+    $("engine-key-row").hidden = k === "mymemory";
+    $("engine-key").required = k === "google";
+    $("engine-url-row").hidden = k !== "libre";
   };
+  $("engine-provider").onchange = fitEngineForm;
+  // While the dialog is open the rest of the page is inert, so its toasts (and their Undo) move in.
+  $("translate-open").onclick = () => { renderEngines(); fitEngineForm(); $("translate").appendChild($("toast")); $("translate").showModal(); };
+  $("translate-close").onclick = () => $("translate").close();
+  $("translate").addEventListener("close", () => { document.body.appendChild($("toast")); $("translate-open").focus(); });
+  $("engine-form").onsubmit = (e) => {
+    e.preventDefault();
+    const provider = $("engine-provider").value;
+    engines.push({ id: newId(), provider, key: $("engine-key").value.trim(), url: provider === "libre" ? $("engine-url").value.trim() : "", active: true });
+    $("engine-key").value = $("engine-url").value = "";
+    enginesChanged();
+    toast(tr("translate.added", { name: content.PROVIDERS[provider].name }));
+  };
+  $("engines").addEventListener("change", (e) => {
+    const engine = engines.find((x) => x.id === e.target.dataset.engineActive);
+    if (!engine) return;
+    engine.active = e.target.checked;
+    enginesChanged();
+  });
+  $("engines").addEventListener("click", (e) => {
+    const id = e.target.closest("[data-engine-remove]")?.dataset.engineRemove;
+    if (!id) return;
+    const at = engines.findIndex((x) => x.id === id), removed = engines[at];
+    engines.splice(at, 1);
+    enginesChanged();
+    toast(tr("translate.removed", { name: content.PROVIDERS[removed.provider].name }), { undo: () => { engines.splice(at, 0, removed); enginesChanged(); } });
+  });
 
   // ---------------------------------------------------------------- rendering
   function show(json) {

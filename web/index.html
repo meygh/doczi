@@ -145,21 +145,24 @@
 </dialog>
 
 <dialog id="translate" aria-labelledby="translate-title">
-  <form method="dialog" id="translate-form">
-    <h2 id="translate-title" data-i18n="translate.title">Machine translation</h2>
-    <p class="sub" data-i18n="translate.intro">Text that no translation file covers can be translated by a service you pick.</p>
-    <label><span data-i18n="translate.provider">Service</span>
-      <select id="translate-provider" name="provider"></select></label>
-    <label id="translate-key-row"><span data-i18n="translate.key">API key</span>
-      <input id="translate-key" name="key" type="password" autocomplete="off"></label>
-    <label id="translate-url-row"><span data-i18n="translate.url">Server address</span>
-      <input id="translate-url" name="url" type="url"></label>
-    <p class="sub" data-i18n="translate.privacy">The text is sent to that service. Your choice and key stay in this browser.</p>
-    <div class="row">
-      <button type="button" id="translate-cancel" data-i18n="translate.cancel">Cancel</button>
-      <button class="primary" type="submit" data-i18n="translate.save">Save</button>
-    </div>
-  </form>
+  <div class="translate-body">
+    <h2 id="translate-title" data-i18n="translate.title">Translation services</h2>
+    <p class="sub" data-i18n="translate.intro">Text that no translation file covers is translated by the first active service; if it fails, the next one tries.</p>
+    <ul class="engines" id="engines"></ul>
+    <p class="sub" id="engines-empty" data-i18n="translate.none">No services yet.</p>
+    <form id="engine-form">
+      <h3 data-i18n="translate.addTitle">Add a service</h3>
+      <label><span data-i18n="translate.provider">Service</span>
+        <select id="engine-provider" name="provider"></select></label>
+      <label id="engine-key-row"><span data-i18n="translate.key">API key</span>
+        <input id="engine-key" name="key" type="password" autocomplete="off"></label>
+      <label id="engine-url-row"><span data-i18n="translate.url">Server address</span>
+        <input id="engine-url" name="url" type="url"></label>
+      <div class="row"><button class="primary" type="submit" data-i18n="translate.add">Add</button></div>
+    </form>
+    <p class="sub" data-i18n="translate.privacy">The text is sent to that service. Your services and keys stay in this browser.</p>
+    <div class="row"><button type="button" id="translate-close" data-i18n="translate.close">Close</button></div>
+  </div>
 </dialog>
 
 <div class="toast" id="toast" role="status" aria-live="polite"><span id="toast-text"></span><button type="button" id="toast-undo" hidden data-i18n="toast.undo">Undo</button></div>
