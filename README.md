@@ -145,8 +145,12 @@ The CLI, the dashboard, the git hook and the MCP server that Codex uses all come
 install:
 
 ```bash
-npm install -g github:meygh/doczi
+npm install -g github:meygh/doczi --allow-git=root
 ```
+
+npm 12 no longer installs from GitHub unless `--allow-git` allows it; `root` allows only the
+package you name. doczi has no dependencies and no install scripts. On npm before 11.10 the
+flag is unknown and npm only warns.
 
 Check it:
 
@@ -255,7 +259,7 @@ what both must follow in `AGENTS.md`, which both read.
 After a new release, on each machine:
 
 ```bash
-npm install -g github:meygh/doczi
+npm install -g github:meygh/doczi --allow-git=root
 ```
 
 Claude Code:
@@ -291,6 +295,7 @@ Start new sessions afterwards; the rules are read when a session starts.
 | The marketplace update fails after the history of `main` changed | Remove the marketplace and add it again, then install the plugin: `claude plugin marketplace remove doczi` or `codex plugin marketplace remove doczi`. |
 | No network, or you work on doczi itself | Add the marketplace from a local clone: `claude plugin marketplace add /path/to/doczi` or `codex plugin marketplace add /path/to/doczi`. The plugin then follows that folder and its current branch. |
 | A session starts without the rules | The plugin is not enabled, or the session is older than the install. Check `claude plugin list` or `codex plugin list`, then start a new session. |
+| `EALLOWGIT`: Fetching packages of type "git" have been disabled | npm 12 blocks installs from GitHub by default. Add `--allow-git=root`, as in step 2. |
 | Codex has no progress tools | The MCP server is missing or points at an old path. `codex mcp list`, then `codex mcp remove doczi` and add it again as in step 4. |
 | An edit or a commit is refused for naming an AI tool | That is the guard working. Rewrite the text without the name; files that configure the tools are exempt (see `aiFootprint.allow`). |
 
@@ -418,7 +423,7 @@ exist, the new name wins.
      `/plugin marketplace add meygh/doczi`, then `/plugin install doczi@doczi`.
    - Codex: the same steps with `codex plugin marketplace` and `codex plugin add`. Then add the
      MCP server again under the name `doczi`.
-2. Reinstall the CLI: run `npm uninstall -g solo-keel`, then `npm install -g github:meygh/doczi`.
+2. Reinstall the CLI: run `npm uninstall -g solo-keel`, then `npm install -g github:meygh/doczi --allow-git=root`.
 3. In each project, run `doczi migrate`.
    - It renames the config file and copies the project list.
    - It refuses if `.doczi.json` already exists.
