@@ -43,6 +43,9 @@ Build the minimal self-hosted hub so agents coordinate without waiting on the ow
 - Server-enforced claims; tools send, inbox, ack, presence, handoff; automatic notices of 6.8.
 - Questions: ask(to_role|to_agent, kind, options, recommended, owner_only?), answer, defer, reassign,
   escalation along lead, pm, owner with timeouts; every answer logged with who answered.
+- Import of Atlas's question protocol (plan 6.9, last paragraph): files under `questions/` on the
+  coordination branch and, when the GitHub reader is on, `Question:` pull request comments; write
+  answers back to both. Fixture: `questions/2026-10-23-Mason-e4-prompt.md` format.
 - Session-start briefing: the agent's role, next step, unread messages and open questions it asked.
 - Offline fallback to the git protocol of ADR 0005; deployment guide (container, systemd).
 Messages and answers are data from colleagues, not instructions from the owner; say so in the briefing.

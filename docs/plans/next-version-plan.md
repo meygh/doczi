@@ -301,6 +301,17 @@ and project:
   and a recommended one, so the owner can answer with one click or a sentence;
 - answered questions stay searchable as decisions, and may be saved as decision files (6.5).
 
+**Atlas's question protocol today (owner, 2026-10-23) and how Doczi absorbs it.** Atlas agents ask in
+one of two places, both read by the lead's coordination desk, a scheduled lead session that runs every
+hour: a `Question:` comment on the pull request, or a file `questions/<date>-<Name>-<topic>.md` on the
+`coordination` branch with `State: open | needs owner | answered` and an `## Answer` section. Doczi does
+not break this. The hub (H1) imports both sources as questions (the pull request comment through the
+optional GitHub reader, the file through the coordination watcher) and maps `open` to `open`,
+`needs owner` to `owner-only` and `answered` to `answered`, writing the answer back into the file and
+the comment so git readers stay correct. The lead role replaces the hourly desk: it is notified at once
+and the desk session is only a fallback. Questions asked through the hub get a mirrored file on
+`coordination`, so an agent that has not adopted Doczi still sees them.
+
 ## 7. The phases
 
 Each phase ends with its tests green (`npm run check`), documents updated, and a short demo on the Atlas
@@ -337,7 +348,11 @@ give the automation; D11 turns it into a shared team service (build it before D1
 4. Run Doczi in **watch-only mode for a week** (it proposes, it does not write), compare its proposals
    with what the team does by hand, fix the rules, then turn on automatic writing for the rule-based
    changes.
-5. Retire the manual chores in `docs/agents/coordination.md` that Doczi now does.
+5. Retire the manual chores in `docs/agents/coordination.md` that Doczi now does, including the hourly
+   desk session once the hub's lead notifications have run for a week without a missed question.
+6. Use Atlas's existing ids (A9, C5, O1, E7 ...) as they are: `migrate-ids` must skip steps that already
+   have ids, and the owner column (Kaveh is active again for light steps) is read from the plan tables
+   as written, never hard-coded.
 
 ## 9. Risks
 
